@@ -111,72 +111,109 @@ def compile_fn(network, net_config, args):
 
     return train_fn, val_fn
 
+def build_cnn_for_recon(batch_size=10):
+    # output cnn recon images(with alias) from the undersample k-space im
 
-if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_epoch', metavar='int', nargs=1, default=['10'],
-                        help='number of epochs')
-    parser.add_argument('--batch_size', metavar='int', nargs=1, default=['10'],
-                        help='batch size')
+
     parser.add_argument('--lr', metavar='float', nargs=1,
                         default=['0.001'], help='initial learning rate')
     parser.add_argument('--l2', metavar='float', nargs=1,
                         default=['1e-6'], help='l2 regularisation')
-    parser.add_argument('--acceleration_factor', metavar='float', nargs=1,
-                        default=['2.0'],
-                        help='Acceleration factor for k-space sampling')
-    # parser.add_argument('--gauss_ivar', metavar='float', nargs=1,
-    #                     default=['0.0015'],
-    #                     help='Sensitivity for Gaussian Distribution which'
-    #                     'decides the undersampling rate of the Cartesian mask')
-    parser.add_argument('--debug', action='store_true', help='debug mode')
-    parser.add_argument('--savefig', action='store_true',default=True,
-                        help='Save output images and masks')
 
     args = parser.parse_args()
 
-    # Project config
-    model_name = 'd2_c2'
-    #gauss_ivar = float(args.gauss_ivar[0])  # undersampling rate
-    acc = float(args.acceleration_factor[0])  # undersampling rate
-    num_epoch = int(args.num_epoch[0])
-    batch_size = int(args.batch_size[0])
     Nx, Ny = 128, 128
-    save_fig = args.savefig
-    save_every = 5
-
-    # Configure directory info
-    project_root = '.'
-    save_dir = join(project_root, 'models/%s' % model_name)
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
 
     # Specify network
     input_shape = (batch_size, 2, Nx, Ny)
-    # net_config, net,  = build_d2_c2(input_shape)
 
-    # Load D5-C5 with pretrained params
+    # Comnstruct and Load D5-C5 with pretrained params
     net_config, net,  = build_d5_c5(input_shape)
-    # D5-C5 with pre-trained parameters
+
     with np.load('./models/pretrained/d5_c5.npz') as f:
         param_values = [f['arr_{0}'.format(i)] for i in range(len(f.files))]
         lasagne.layers.set_all_param_values(net, param_values)
 
-    # Compute acceleration rate
-    dummy_mask = cs.cartesian_mask((10, Nx, Ny), acc, sample_n=8)
-    sample_und_factor = cs.undersampling_rate(dummy_mask)
-
-    print('Undersampling Rate: {:.2f}'.format(sample_und_factor))
-
     # Compile function
     train_fn, val_fn = compile_fn(net, net_config, args)
 
+    return val_fn
 
-    # Create dataset
-    train, validate, test = create_dummy_data()
+def cnn_recon(im, val_fn, acc=2.0):
+    # expecting input 128*128*24
 
-    vis = []
-    g_index = 0
+    im_und, k_und, mask, im_gnd = prep_input(im, acc=acc)
+
+    err, pred = val_fn(im_und, mask, k_und, im_gnd)
+
+    return pred
+
+if __name__ == '__main__':
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--num_epoch', metavar='int', nargs=1, default=['10'],
+    #                     help='number of epochs')
+    # parser.add_argument('--batch_size', metavar='int', nargs=1, default=['10'],
+    #                     help='batch size')
+    # parser.add_argument('--lr', metavar='float', nargs=1,
+    #                     default=['0.001'], help='initial learning rate')
+    # parser.add_argument('--l2', metavar='float', nargs=1,
+    #                     default=['1e-6'], help='l2 regularisation')
+    # parser.add_argument('--acceleration_factor', metavar='float', nargs=1,
+    #                     default=['2.0'],
+    #                     help='Acceleration factor for k-space sampling')
+    # # parser.add_argument('--gauss_ivar', metavar='float', nargs=1,
+    # #                     default=['0.0015'],
+    # #                     help='Sensitivity for Gaussian Distribution which'
+    # #                     'decides the undersampling rate of the Cartesian mask')
+    # parser.add_argument('--debug', action='store_true', help='debug mode')
+    # parser.add_argument('--savefig', action='store_true',default=True,
+    #                     help='Save output images and masks')
+    #
+    # args = parser.parse_args()
+    #
+    # # Project config
+    # model_name = 'd2_c2'
+    # #gauss_ivar = float(args.gauss_ivar[0])  # undersampling rate
+    # acc = float(args.acceleration_factor[0])  # undersampling rate
+    # num_epoch = int(args.num_epoch[0])
+    # batch_size = int(args.batch_size[0])
+    # Nx, Ny = 128, 128
+    # save_fig = args.savefig
+    # save_every = 5
+    #
+    # # Configure directory info
+    # project_root = '.'
+    # save_dir = join(project_root, 'models/%s' % model_name)
+    # if not os.path.isdir(save_dir):
+    #     os.makedirs(save_dir)
+    #
+    # # Specify network
+    # input_shape = (batch_size, 2, Nx, Ny)
+    # # net_config, net,  = build_d2_c2(input_shape)
+    #
+    # # Load D5-C5 with pretrained params
+    # net_config, net,  = build_d5_c5(input_shape)
+    # # D5-C5 with pre-trained parameters
+    # with np.load('./models/pretrained/d5_c5.npz') as f:
+    #     param_values = [f['arr_{0}'.format(i)] for i in range(len(f.files))]
+    #     lasagne.layers.set_all_param_values(net, param_values)
+    #
+    # # Compute acceleration rate
+    # dummy_mask = cs.cartesian_mask((10, Nx, Ny), acc, sample_n=8)
+    # sample_und_factor = cs.undersampling_rate(dummy_mask)
+    #
+    # print('Undersampling Rate: {:.2f}'.format(sample_und_factor))
+    #
+    # # Compile function
+    # train_fn, val_fn = compile_fn(net, net_config, args)
+    #
+    #
+    # # Create dataset
+    # train, validate, test = create_dummy_data()
+    #
+    # vis = []
+    # g_index = 0
 
     #read in our own data
     data_dir = 'hyperdata/brain_bd9.nii'
@@ -188,53 +225,56 @@ if __name__ == '__main__':
     im_bz = np.pad(array=im_brain,pad_width=((int(npad/2),int(npad-npad/2)),(0,0),(0,0)),mode='constant',constant_values=0)
     im_bz = np.transpose(im_bz,[2,0,1])
 
-    im = im_bz
-    im_und, k_und, mask, im_gnd = prep_input(im, acc=acc)
-
-    # rotate the mask will totally mess up the results
-    mask = np.rot90(mask,k=1,axes=(2,3))
-
-    err, pred = val_fn(im_und, mask, k_und, im_gnd)
-
-    # convert from lasagne to matrix
-    pred_s = np.sqrt(pred[:,0,:,:]**2+pred[:,1,:,:]**2)
-    im_und_s = np.sqrt(im_und[:,0,:,:]**2+im_und[:,1,:,:]**2)
-    im_gnd_s = np.sqrt(im_gnd[:,0,:,:]**2+im_gnd[:,1,:,:]**2)
-    k_und_s = np.sqrt(k_und[:,0,:,:]**2+k_und[:,1,:,:]**2)
-
-    for slice in range(np.shape(im)[0]):
-
-        plt_im = abs(im[slice,:,:])
-        plt_cs = abs(im_und_s[slice,:,:])
-        plt_cnn = abs(pred_s[slice,:,:])
-        plt_mask = abs(mask[slice,0,:,:])
-        pmin = np.amin(plt_im)
-        pmax = np.amax(plt_im)
-
-        sub_cs = abs(plt_cs-plt_im)
-        sub_cnn = abs(plt_cnn-plt_im)
-
-        vmin = np.amin([np.amin(sub_cs),np.amin(sub_cnn)])
-        vmax = np.amax([np.amax(sub_cs),np.amax(sub_cnn)])
-
-        plt.figure(figsize=[20,16])
-        plt.subplot(2,3,1)
-        plt.imshow(plt_im,vmin=pmin,vmax=pmax);plt.title('Original Image')
-        plt.subplot(2,3,2)
-        plt.imshow(plt_cs,vmin=pmin,vmax=pmax);plt.title('Compressed Sensing')
-        plt.subplot(2,3,3)
-        plt.imshow(plt_cnn,vmin=pmin,vmax=pmax);plt.title('CNN Recon')
-        plt.subplot(2,3,4)
-        plt.imshow(plt_mask);plt.title('UnderSample')
-        plt.subplot(2,3,5)
-        plt.imshow(sub_cs,vmin=vmin,vmax=vmax);plt.title('CS Subtraction')
-        plt.subplot(2,3,6)
-        plt.imshow(sub_cnn,vmin=vmin,vmax=vmax);plt.title('CNN Subtraction')
-        plt.savefig('hyperdata/results_maskrot90/image_comp_'+str(g_index))
-        plt.close()
-        g_index += 1
-
+    val_fn = build_cnn_for_recon()
+    pred = cnn_recon(im=im_bz, val_fn=val_fn)
     pdb.set_trace()
+
+    # im_und, k_und, mask, im_gnd = prep_input(im, acc=acc)
+    #
+    # # rotate the mask will totally mess up the results
+    # mask = np.rot90(mask,k=1,axes=(2,3))
+    #
+    # err, pred = val_fn(im_und, mask, k_und, im_gnd)
+    #
+    # # convert from lasagne to matrix
+    # pred_s = np.sqrt(pred[:,0,:,:]**2+pred[:,1,:,:]**2)
+    # im_und_s = np.sqrt(im_und[:,0,:,:]**2+im_und[:,1,:,:]**2)
+    # im_gnd_s = np.sqrt(im_gnd[:,0,:,:]**2+im_gnd[:,1,:,:]**2)
+    # k_und_s = np.sqrt(k_und[:,0,:,:]**2+k_und[:,1,:,:]**2)
+    #
+    # for slice in range(np.shape(im)[0]):
+    #
+    #     plt_im = abs(im[slice,:,:])
+    #     plt_cs = abs(im_und_s[slice,:,:])
+    #     plt_cnn = abs(pred_s[slice,:,:])
+    #     plt_mask = abs(mask[slice,0,:,:])
+    #     pmin = np.amin(plt_im)
+    #     pmax = np.amax(plt_im)
+    #
+    #     sub_cs = abs(plt_cs-plt_im)
+    #     sub_cnn = abs(plt_cnn-plt_im)
+    #
+    #     vmin = np.amin([np.amin(sub_cs),np.amin(sub_cnn)])
+    #     vmax = np.amax([np.amax(sub_cs),np.amax(sub_cnn)])
+    #
+    #     plt.figure(figsize=[20,16])
+    #     plt.subplot(2,3,1)
+    #     plt.imshow(plt_im,vmin=pmin,vmax=pmax);plt.title('Original Image')
+    #     plt.subplot(2,3,2)
+    #     plt.imshow(plt_cs,vmin=pmin,vmax=pmax);plt.title('Compressed Sensing')
+    #     plt.subplot(2,3,3)
+    #     plt.imshow(plt_cnn,vmin=pmin,vmax=pmax);plt.title('CNN Recon')
+    #     plt.subplot(2,3,4)
+    #     plt.imshow(plt_mask);plt.title('UnderSample')
+    #     plt.subplot(2,3,5)
+    #     plt.imshow(sub_cs,vmin=vmin,vmax=vmax);plt.title('CS Subtraction')
+    #     plt.subplot(2,3,6)
+    #     plt.imshow(sub_cnn,vmin=vmin,vmax=vmax);plt.title('CNN Subtraction')
+    #     plt.savefig('hyperdata/results_maskrot90/image_comp_'+str(g_index))
+    #     plt.close()
+    #     g_index += 1
+    #
+    # pdb.set_trace()
     # Use the pre-trained model for the testing samples
     # for im in iterate_minibatch(test, batch_size, shuffle=False):
     #     im_und, k_und, mask, im_gnd = prep_input(im, acc=acc)
