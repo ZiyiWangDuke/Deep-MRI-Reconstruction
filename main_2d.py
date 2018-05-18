@@ -9,7 +9,7 @@ import theano.tensor as T
 import lasagne
 import argparse
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from os.path import join
@@ -49,7 +49,7 @@ def iterate_minibatch(data, batch_size, shuffle=True):
     if shuffle:
         data = np.random.permutation(data)
 
-    for i in xrange(0, n, batch_size):
+    for i in range(0, n, batch_size):
         yield data[i:i+batch_size]
 
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     model_name = 'd5_c5'
 
     num_epoch = 20
-    batch_size = 5
+    batch_size = 10
     base_lr = 0.001
     l2 = 1e-6
 
@@ -174,13 +174,13 @@ if __name__ == '__main__':
 
     # Create dataset
     train, validate, test = create_dummy_data()
-    train = train[:10,:,:]
-    validate = validate[:10,:,:]
-    test = test[:10,:,:]
+    # train = train[:10,:,:]
+    # validate = validate[:10,:,:]
+    # test = test[:10,:,:]
     # data shape num*128*128
 
     print('Start Training...')
-    for epoch in xrange(num_epoch):
+    for epoch in range(num_epoch):
         t_start = time.time()
         print('ZW: starting epoch:'+str(epoch))
 
@@ -269,6 +269,7 @@ if __name__ == '__main__':
                     i += 1
 
             name = '%s_epoch_%d.npz' % (model_name, epoch)
+            pdb.set_trace()
             np.savez(join(save_dir, name),
                      *lasagne.layers.get_all_param_values(net))
             print('model parameters saved at %s' % join(os.getcwd(), name))
