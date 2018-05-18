@@ -24,7 +24,7 @@ from cascadenet.util.helpers import to_lasagne_format
 
 import nibabel as nib
 
-def prep_input(im, acc=4):
+def prep_input(im, acc=2):
     """Undersample the batch, then reformat them into what the network accepts.
 
     Parameters
@@ -32,7 +32,9 @@ def prep_input(im, acc=4):
     gauss_ivar: float - controls the undersampling rate.
                         higher the value, more undersampling
     """
-    mask = cs.cartesian_mask(im.shape, acc, sample_n=8)
+
+    mask = cs.var_2d_mask(shape=im.shape,acc=acc)
+
     im_und, k_und = cs.undersample(im, mask, centred=False, norm='ortho')
     im_gnd_l = to_lasagne_format(im)
     im_und_l = to_lasagne_format(im_und)
@@ -140,14 +142,17 @@ def build_cnn_for_recon(batch_size=10):
 
     return val_fn
 
-def cnn_recon(im, val_fn, acc=2.0):
+def cnn_recon(im, val_fn, acc=2):
     # expecting input 128*128*24
 
     im_und, k_und, mask, im_gnd = prep_input(im, acc=acc)
-
+    start_time = time.time()
     err, pred = val_fn(im_und, mask, k_und, im_gnd)
+    end_time = time.time()
 
-    return pred
+    print("The average recon time for one slice with CNN is")
+    print((end_time-start_time)/np.shape(pred)[0])
+    return pred, im_und, k_und, mask,im_gnd
 
 if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
@@ -213,7 +218,7 @@ if __name__ == '__main__':
     # train, validate, test = create_dummy_data()
     #
     # vis = []
-    # g_index = 0
+    g_index = 0
 
     #read in our own data
     data_dir = 'hyperdata/brain_bd9.nii'
@@ -225,9 +230,15 @@ if __name__ == '__main__':
     im_bz = np.pad(array=im_brain,pad_width=((int(npad/2),int(npad-npad/2)),(0,0),(0,0)),mode='constant',constant_values=0)
     im_bz = np.transpose(im_bz,[2,0,1])
 
+    # to test the mask
+    # im_und, k_und, mask, im_gnd = prep_input(im=im_bz, acc=2)
+    # real prediction
     val_fn = build_cnn_for_recon()
-    pred = cnn_recon(im=im_bz, val_fn=val_fn)
-    pdb.set_trace()
+    pred_1, im_und, k_und, mask, im_gnd = cnn_recon(im=im_bz, val_fn=val_fn,acc=3)
+    pred_2 = pred_1
+    # pred_2, im_und, k_und, mask, im_gnd = cnn_recon(im=im_bz, val_fn=val_fn,acc=4)
+    im= im_bz
+    # pdb.set_trace()
 
     # im_und, k_und, mask, im_gnd = prep_input(im, acc=acc)
     #
@@ -236,45 +247,50 @@ if __name__ == '__main__':
     #
     # err, pred = val_fn(im_und, mask, k_und, im_gnd)
     #
-    # # convert from lasagne to matrix
-    # pred_s = np.sqrt(pred[:,0,:,:]**2+pred[:,1,:,:]**2)
-    # im_und_s = np.sqrt(im_und[:,0,:,:]**2+im_und[:,1,:,:]**2)
-    # im_gnd_s = np.sqrt(im_gnd[:,0,:,:]**2+im_gnd[:,1,:,:]**2)
-    # k_und_s = np.sqrt(k_und[:,0,:,:]**2+k_und[:,1,:,:]**2)
-    #
-    # for slice in range(np.shape(im)[0]):
-    #
-    #     plt_im = abs(im[slice,:,:])
-    #     plt_cs = abs(im_und_s[slice,:,:])
-    #     plt_cnn = abs(pred_s[slice,:,:])
-    #     plt_mask = abs(mask[slice,0,:,:])
-    #     pmin = np.amin(plt_im)
-    #     pmax = np.amax(plt_im)
-    #
-    #     sub_cs = abs(plt_cs-plt_im)
-    #     sub_cnn = abs(plt_cnn-plt_im)
-    #
-    #     vmin = np.amin([np.amin(sub_cs),np.amin(sub_cnn)])
-    #     vmax = np.amax([np.amax(sub_cs),np.amax(sub_cnn)])
-    #
-    #     plt.figure(figsize=[20,16])
-    #     plt.subplot(2,3,1)
-    #     plt.imshow(plt_im,vmin=pmin,vmax=pmax);plt.title('Original Image')
-    #     plt.subplot(2,3,2)
-    #     plt.imshow(plt_cs,vmin=pmin,vmax=pmax);plt.title('Compressed Sensing')
-    #     plt.subplot(2,3,3)
-    #     plt.imshow(plt_cnn,vmin=pmin,vmax=pmax);plt.title('CNN Recon')
-    #     plt.subplot(2,3,4)
-    #     plt.imshow(plt_mask);plt.title('UnderSample')
-    #     plt.subplot(2,3,5)
-    #     plt.imshow(sub_cs,vmin=vmin,vmax=vmax);plt.title('CS Subtraction')
-    #     plt.subplot(2,3,6)
-    #     plt.imshow(sub_cnn,vmin=vmin,vmax=vmax);plt.title('CNN Subtraction')
-    #     plt.savefig('hyperdata/results_maskrot90/image_comp_'+str(g_index))
-    #     plt.close()
-    #     g_index += 1
-    #
-    # pdb.set_trace()
+    # convert from lasagne to matrix
+    pred_s_1 = np.sqrt(pred_1[:,0,:,:]**2+pred_1[:,1,:,:]**2)
+    pred_s_2 = np.sqrt(pred_2[:,0,:,:]**2+pred_2[:,1,:,:]**2)
+    pred_s = (pred_s_1 + pred_s_2)/2
+
+    im_und_s = np.sqrt(im_und[:,0,:,:]**2+im_und[:,1,:,:]**2)
+    im_gnd_s = np.sqrt(im_gnd[:,0,:,:]**2+im_gnd[:,1,:,:]**2)
+    k_und_s = np.sqrt(k_und[:,0,:,:]**2+k_und[:,1,:,:]**2)
+
+    for slice in range(np.shape(im)[0]):
+
+        plt_im = abs(im[slice,:,:])
+        plt_cs = abs(im_und_s[slice,:,:])
+        plt_cnn = abs(pred_s[slice,:,:])
+        plt_mask = np.fft.fftshift(abs(mask[slice,0,:,:]))
+        sample_rate = np.sum(plt_mask)/(np.prod(plt_mask.shape)*1.0)
+        pmin = np.amin(plt_im)
+        pmax = np.amax(plt_im)
+
+        sub_cs = abs(np.fft.fftshift(np.fft.fft2(plt_cs-plt_im)))
+        sub_cnn = abs(np.fft.fftshift(np.fft.fft2(plt_cnn-plt_im)))
+
+        vmin = np.amin([np.amin(sub_cs),np.amin(sub_cnn)])
+        vmax = np.amax([np.amax(sub_cs),np.amax(sub_cnn)])
+
+        plt.figure(figsize=[20,16])
+        plt.subplot(2,3,1)
+        plt.imshow(plt_im,vmin=pmin,vmax=pmax);plt.title('Original Image')
+        plt.subplot(2,3,2)
+        plt.imshow(plt_cs,vmin=pmin,vmax=pmax);plt.title('Zero Padding IFFT')
+        plt.subplot(2,3,3)
+        plt.imshow(plt_cnn,vmin=pmin,vmax=pmax);plt.title('CNN Recon')
+        plt.subplot(2,3,4)
+        plt.imshow(plt_mask);plt.title('UnderSample rate: '+str(sample_rate))
+        plt.subplot(2,3,5)
+        plt.imshow(sub_cs,vmin=vmin,vmax=vmax);plt.title('IFFT Subtraction')
+        plt.subplot(2,3,6)
+        plt.imshow(sub_cnn,vmin=vmin,vmax=vmax);plt.title('CNN Subtraction')
+        plt.savefig('hyperdata/results_acc3/image_comp_'+str(g_index))
+        plt.close()
+        plt.clf()
+        g_index += 1
+
+    pdb.set_trace()
     # Use the pre-trained model for the testing samples
     # for im in iterate_minibatch(test, batch_size, shuffle=False):
     #     im_und, k_und, mask, im_gnd = prep_input(im, acc=acc)

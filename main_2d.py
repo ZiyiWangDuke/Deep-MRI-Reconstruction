@@ -8,6 +8,8 @@ import theano
 import theano.tensor as T
 import lasagne
 import argparse
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 from os.path import join
@@ -126,7 +128,7 @@ if __name__ == '__main__':
     #                     help='Sensitivity for Gaussian Distribution which'
     #                     'decides the undersampling rate of the Cartesian mask')
     parser.add_argument('--debug', action='store_true', help='debug mode')
-    parser.add_argument('--savefig', action='store_true',
+    parser.add_argument('--savefig', action='store_true',default=True,
                         help='Save output images and masks')
 
     args = parser.parse_args()
@@ -149,18 +151,19 @@ if __name__ == '__main__':
 
     # Specify network
     input_shape = (batch_size, 2, Nx, Ny)
-    net_config, net,  = build_d2_c2(input_shape)
+    # net_config, net,  = build_d2_c2(input_shape)
 
-    # # Load D5-C5 with pretrained params
-    # net_config, net,  = build_d5_c5(input_shape)
+    # Load D5-C5 with pretrained params
+    net_config, net,  = build_d5_c5(input_shape)
     # D5-C5 with pre-trained parameters
-    # with np.load('./models/pretrained/d5_c5.npz') as f:
-    #     param_values = [f['arr_{0}'.format(i)] for i in range(len(f.files))]
-    #     lasagne.layers.set_all_param_values(net, param_values)
+    with np.load('./models/pretrained/d5_c5.npz') as f:
+        param_values = [f['arr_{0}'.format(i)] for i in range(len(f.files))]
+        lasagne.layers.set_all_param_values(net, param_values)
 
     # Compute acceleration rate
     dummy_mask = cs.cartesian_mask((10, Nx, Ny), acc, sample_n=8)
     sample_und_factor = cs.undersampling_rate(dummy_mask)
+    import pdb; pdb.set_trace()
     print('Undersampling Rate: {:.2f}'.format(sample_und_factor))
 
     # Compile function
@@ -173,6 +176,7 @@ if __name__ == '__main__':
     print('Start Training...')
     for epoch in xrange(num_epoch):
         t_start = time.time()
+        print('ZW: finished epoch:'+str(epoch))
         # Training
         train_err = 0
         train_batches = 0
@@ -206,6 +210,7 @@ if __name__ == '__main__':
 
             err, pred = val_fn(im_und, mask, k_und, im_gnd)
             test_err += err
+
             for im_i, und_i, pred_i in zip(im,
                                            from_lasagne_format(im_und),
                                            from_lasagne_format(pred)):
@@ -253,7 +258,7 @@ if __name__ == '__main__':
                     i += 1
 
             name = '%s_epoch_%d.npz' % (model_name, epoch)
-            np.savez(join(save_dir, name),
-                     *lasagne.layers.get_all_param_values(net))
+            # np.savez(join(save_dir, name),
+                     # *lasagne.layers.get_all_param_values(net))
             print('model parameters saved at %s' % join(os.getcwd(), name))
             print('')

@@ -1,5 +1,7 @@
 import numpy as np
 from . import mymath
+import pdb
+import matplotlib.pyplot as plt
 from numpy.lib.stride_tricks import as_strided
 
 
@@ -42,6 +44,42 @@ def var_dens_mask(shape, ivar, sample_high_freq=True):
 
     return mask
 
+def var_dens_mask_zw(shape, ivar, acc, sample_high_freq=True):
+    """Variable Density Mask (2D undersampling)"""
+    if len(shape) == 3:
+        Nt, Nx, Ny = shape
+    else:
+        Nx, Ny = shape
+        Nt = 1
+
+    pdf_x = normal_pdf(Nx, ivar)
+    pdf_y = normal_pdf(Ny, ivar)
+    pdf = np.outer(pdf_x, pdf_y)
+
+    pdf = np.ones()
+
+    size = pdf.itemsize
+    strided_pdf = as_strided(pdf, (Nt, Nx, Ny), (0, Ny * size, size))
+    # this must be false if undersampling rate is very low (around 90%~ish)
+    if sample_high_freq:
+        strided_pdf = strided_pdf + (1.0/acc) # increase high frequency sample density
+        strided_pdf[strided_pdf>1.0] = 1.0
+
+    mask = np.random.binomial(1, strided_pdf)
+
+    xc = Nx / 2
+    yc = Ny / 2
+    mask[:, xc - 4:xc + 5, yc - 4:yc + 5] = True
+
+    if Nt == 1:
+        return mask.reshape((Nx, Ny))
+
+    mask = np.fft.fftshift(mask)
+    return mask
+
+def var_2d_mask(shape,acc):
+    mask = np.random.binomial(1, np.ones(shape)*(1.0/acc))
+    return mask
 
 def cartesian_mask(shape, acc, sample_n=10, centred=False):
     """

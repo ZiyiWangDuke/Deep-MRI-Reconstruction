@@ -1,7 +1,7 @@
 appdirs==1.4.3
 cycler==0.10.0
 functools32==3.2.3.post2
-Lasagne==0.2.dev1
+Lasagne==0.1
 matplotlib==2.0.2
 numpy==1.12.1
 packaging==16.8
