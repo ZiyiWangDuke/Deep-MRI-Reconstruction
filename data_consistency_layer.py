@@ -23,24 +23,18 @@ class data_consistency_with_mask_layer(Layer):
     def call(self, inputs, **kwargs):
 
         '''
-        Parameters
-        ------------------------------
-        inputs: 3 4d tensors
-            First is data, second is the mask, third is the k-space samples
+        Inputs: 3x4d tensors: k-space from image(in pipeline), mask, k-space samples
 
-        Returns
-        ------------------------------
-        output: 4d tensor, data input with entries replaced with the sampled
-        values
+        output: 4d tensor, input with entries replaced/weighted with the sampled values
         '''
 
         x = inputs[...,0:2]
         mask = inputs[...,2:4]
         x_sampled = inputs[...,4:6]
 
-        if self.inv_noise_level:  # noisy case
+        if self.lam:  # noisy case
             output = (x + self.lam * x_sampled) / (1 + self.lam)
-        else:  # noiseless case
+        else:  # noiseless case, essentially just using the original data
             output = (1 - mask) * x + x_sampled
 
         return output

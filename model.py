@@ -91,7 +91,50 @@ fft3 = data_consistency_with_mask_layer()(fft3)
 
 dc3 = fft_layer(fft_dir = False)(fft3)
 
-autoencoder = Model(inputs = [input_img, input_mask, input_img_sampled], outputs = dc3)
-opt = keras.optimizers.adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.00001)
-autoencoder.compile(loss="categorical_crossentropy", optimizer=opt, metrics=['accuracy'],sample_weight_mode='temporal')
+# 5 conv sequential
+conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc3)
+print("conv3 shape:",conv3.shape)
+conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
+print("conv3 shape:",conv3.shape)
+conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
+print("conv3 shape:",conv3.shape)
+conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
+print("conv3 shape:",conv3.shape)
+conv4 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
+print("conv3 shape:",conv3.shape)
+
+# residual
+res4 = Add()([dc3,conv4])
+# add data consistency layer here
+fft4 = fft_layer(fft_dir = True)(res4)
+
+fft4 = concatenate([fft4, input_mask, input_img_sampled], axis=-1)
+fft4 = data_consistency_with_mask_layer()(fft4)
+
+dc4 = fft_layer(fft_dir = False)(fft4)
+
+# 5 conv sequential
+conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc4)
+print("conv3 shape:",conv3.shape)
+conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
+print("conv3 shape:",conv3.shape)
+conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
+print("conv3 shape:",conv3.shape)
+conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
+print("conv3 shape:",conv3.shape)
+conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
+print("conv3 shape:",conv3.shape)
+
+# residual
+res5 = Add()([dc4,conv5])
+# add data consistency layer here
+fft5 = fft_layer(fft_dir = True)(res5)
+
+fft5 = concatenate([fft5, input_mask, input_img_sampled], axis=-1)
+fft5 = data_consistency_with_mask_layer()(fft5)
+
+dc5 = fft_layer(fft_dir = False)(fft5)
+
+recon_encoder = Model(inputs = [input_img, input_mask, input_img_sampled], outputs = dc5)
+
 pdb.set_trace()
