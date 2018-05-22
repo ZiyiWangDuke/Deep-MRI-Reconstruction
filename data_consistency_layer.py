@@ -30,12 +30,12 @@ class data_consistency_with_mask_layer(Layer):
 
         x = inputs[...,0:2]
         mask = inputs[...,2:4]
-        x_sampled = inputs[...,4:6]
+        xk_sampled = inputs[...,4:6]
 
         if self.lam:  # noisy case
-            output = (x + self.lam * x_sampled) / (1 + self.lam)
+            output = (x + self.lam * xk_sampled) / (1 + self.lam)
         else:  # noiseless case, essentially just using the original data
-            output = (1 - mask) * x + x_sampled
+            output = (1 - mask) * x + xk_sampled
 
         return output
 
