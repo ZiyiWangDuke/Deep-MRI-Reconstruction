@@ -5,7 +5,7 @@ from dl_research.projects.degrade.scripts.slices import (
 
 from dl_research.papers.automap.data import axial_non_dw_filter_256, load_data
 
-from .utils_functions import var_2d_mask, down_sample_with_mask
+from .utils_functions import var_2d_mask, down_sample_with_mask, relative_error_center_30pix
 from .model import recon_encoder
 
 import os, pdb
@@ -19,6 +19,8 @@ import matplotlib.pyplot as plt
 
 import keras 
 
+
+
 project_path = '/home/zwang/dl_research/projects/under_recon/'
 
 # function read in all data as a big dataframe 
@@ -28,7 +30,7 @@ data_train, data_valid = load_data(
 )
 
 # take a small bite of the big data set as the trainning set
-num_list = 10
+num_list = 60 #for training
 
 img_w = 256
 img_h = 256
@@ -58,43 +60,72 @@ ims = np.float32(ims)
 np.random.shuffle(ims)
 
 # simulate downsampled ims with 2D undersample mask
-ims_sample, k_sample, masks = down_sample_with_mask(ims)
-
-input_data = [ims_sample, masks, k_sample]
-output_data = ims
+ims_sample, masks, k_sample = down_sample_with_mask(ims)
 
 # pdb.set_trace()
 # build image data generator to send input 
 
-batch_size = 2
-epochs = 10
+batch_size = 10
+epochs = 20
 
 ''' load model and train '''
-# tensorboard = keras.callbacks.TensorBoard(log_dir="keras_logs/{}".format(datetime.strftime(datetime.now(), '%Y_%m_%d_%H')),
-#                                           write_grads=False,
-#                                           write_images=False,
-#                                           histogram_freq=0)
+tensorboard = keras.callbacks.TensorBoard(log_dir="output/keras_logs/{}".format(datetime.strftime(datetime.now(), '%Y_%m_%d_%H_%M')),
+                                          write_grads=False, # write grads take a significant amount of memory
+                                          write_images=False,
+                                          histogram_freq=2)
+
+# the last slices to be used for test, exclude from training
+num_ck = 10
+
+input_data = [ims_sample[:-num_ck,:,:,:], masks[:-num_ck,:,:,:], k_sample[:-num_ck,:,:,:]]
+output_data = ims[:-num_ck,:,:,:]
+
 
 recon_encoder.summary()
-recon_encoder.compile(loss="mean_squared_error", optimizer='adam', metrics=['accuracy'],sample_weight_mode='temporal')
+recon_encoder.compile(loss="mean_squared_error", optimizer='adam', metrics=[relative_error_center_30pix],sample_weight_mode='temporal')
 
-history = recon_encoder.fit(  x=input_data,
+history = recon_encoder.fit(  
+                      x=input_data,
                       y=output_data,
                       batch_size=batch_size,
                       epochs=epochs,
                       verbose=1,
-                      # callbacks=[tensorboard],
+                      callbacks=[tensorboard],
                       validation_split=0.2,
                       shuffle=True,
                       initial_epoch=0)
 
-recon_encoder.save('under_recon_180522.h5')
+recon_encoder.save_weights('output/models/under_recon_180523.h5')
 
+# recon_encoder.load_weights('output/models/under_recon_180523.h5')
+
+for k in range(num_ck):
+    # pdb.set_trace()
+    test_input = [ims_sample[-k,:,:,:], masks[-k,:,:,:], k_sample[-k,:,:,:]]
+    test_input = [np.expand_dims(x, axis=0) for x in test_input] # make a dummy first dimension c
+    
+    model_out = recon_encoder.predict(test_input)
+    
+    plt_mask = abs(masks[-k,:,:,0])
+    plt_im_sample = abs(ims_sample[-k,:,:,0]+ims_sample[-k,:,:,1]*1j)
+    plt_im_predict = abs(model_out[0,:,:,0]+model_out[0,:,:,1]*1j)
+    plt_full = abs(ims[-k,:,:,0]+ims[-k,:,:,1]*1j)
+    
+    plt.figure()
+    plt.subplot(1,4,1); plt.imshow(plt_mask)
+    plt.subplot(1,4,2); plt.imshow(plt_im_sample)
+    plt.subplot(1,4,3); plt.imshow(plt_im_predict)
+    plt.subplot(1,4,4); plt.imshow(plt_full)
+    plt.savefig('output/figures/predict_im_'+str(k))
+    plt.clf()
+
+# check data consistency layer
+# dc1 = recon_encoder.layers[11]
+# dc2 = recon_encoder.layers[21]
+# dc3 = recon_encoder.layers[31]
+# dc4 = recon_encoder.layers[41]
 
 # shuffle
 pdb.set_trace()
-    
-
-
 
 

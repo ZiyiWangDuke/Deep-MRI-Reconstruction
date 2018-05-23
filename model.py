@@ -27,15 +27,15 @@ input_img_sampled = Input(( img_w, img_h, 2)) # k space sampled
 
 # 5 conv sequential
 conv1 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(input_img)
-print("conv1 shape:",conv1.shape)
+# print("conv1 shape:",conv1.shape)
 conv1 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-print("conv1 shape:",conv1.shape)
+# # print("conv1 shape:",conv1.shape)
 conv1 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-print("conv1 shape:",conv1.shape)
+# print("conv1 shape:",conv1.shape)
 conv1 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-print("conv1 shape:",conv1.shape)
+# print("conv1 shape:",conv1.shape)
 conv1 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-print("conv1 shape:",conv1.shape)
+# print("conv1 shape:",conv1.shape)
 
 # residual
 res1 = Add()([input_img,conv1])
@@ -49,15 +49,15 @@ dc1 = fft_layer(fft_dir = False)(fft1)
 
 # 5 conv sequential
 conv2 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc1)
-print("conv2 shape:",conv2.shape)
+# print("conv2 shape:",conv2.shape)
 conv2 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
-print("conv2 shape:",conv2.shape)
+# print("conv2 shape:",conv2.shape)
 conv2 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
-print("conv2 shape:",conv2.shape)
+# print("conv2 shape:",conv2.shape)
 conv2 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
-print("conv2 shape:",conv2.shape)
+# print("conv2 shape:",conv2.shape)
 conv2 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
-print("conv2 shape:",conv2.shape)
+# print("conv2 shape:",conv2.shape)
 
 # residual
 res2 = Add()([dc1,conv2])
@@ -71,15 +71,15 @@ dc2 = fft_layer(fft_dir = False)(fft2)
 
 # 5 conv sequential
 conv3 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc2)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv3 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv3 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv3 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv3 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 
 # residual
 res3 = Add()([dc2,conv3])
@@ -93,15 +93,15 @@ dc3 = fft_layer(fft_dir = False)(fft3)
 
 # 5 conv sequential
 conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc3)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv4 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 
 # residual
 res4 = Add()([dc3,conv4])
@@ -115,15 +115,17 @@ dc4 = fft_layer(fft_dir = False)(fft4)
 
 # 5 conv sequential
 conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc4)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
 conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-print("conv3 shape:",conv3.shape)
-conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-print("conv3 shape:",conv3.shape)
+# print("conv3 shape:",conv3.shape)
+conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal', 
+               kernel_regularizer=keras.regularizers.l2(0.01),
+               activity_regularizer=keras.regularizers.l1(0.01))(conv5)
+# print("conv3 shape:",conv3.shape)
 
 # residual
 res5 = Add()([dc4,conv5])
