@@ -84,7 +84,8 @@ class OutputObserver(keras.callbacks.Callback):
         
 
 def relative_error_center_30pix(y_true, y_pred):
-    # calculate the average of relative error of the center 30 pixels
+    
+    ''' Keras Metric: calculate the average of relative error of the center 30 pixels '''
     
     # assume it is a square image
     dim = 256
@@ -99,11 +100,22 @@ def relative_error_center_30pix(y_true, y_pred):
     # crop out the center part (FOV)
     ct_y_true = tf.abs(y_true_cplx[:,dim_st:dim_end,dim_st:dim_end])
     ct_y_pred = tf.abs(y_pred_cplx[:,dim_st:dim_end,dim_st:dim_end])
-    ct_dif = tf.subtract(ct_y_true, ct_y_pred)
+    ct_dif = tf.abs(tf.subtract(ct_y_true, ct_y_pred))
     
     ave_error_per = tf.div(tf.reduce_mean(ct_dif), tf.reduce_mean(ct_y_true))
     return ave_error_per
 
+def psnr_tensor(y_true, y_pred):
+    
+    ''' Keras Metric: PSNR of float32'''
+    
+    return tf.image.psnr(y_true, y_pred, max_val=1.0)
+
+def ssim_tensor(y_true, y_pred):
+    
+    ''' Keras Metric: SSIM of float32'''
+    
+    return tf.image.ssim(y_true, y_pred, max_val=1.0)
 
 # def data_gen(uteList,sourceDir):
 #     list_len = len(uteList)

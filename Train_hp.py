@@ -6,7 +6,7 @@ from dl_research.projects.degrade.scripts.slices import (
 from dl_research.papers.automap.data import axial_non_dw_filter_256, load_data
 
 from .utils_functions import var_2d_mask, down_sample_with_mask, relative_error_center_30pix
-from .model import recon_encoder
+from .model_Unet import recon_encoder
 
 import os, pdb
 import numpy as np
@@ -52,16 +52,50 @@ for index in range(num_list):
     print("finished attach subject "+str(index))
     
 # attach a empty imag channel to the image stack
-ims = np.expand_dims(ims,axis=-1)
-ims = np.concatenate([ims, np.zeros(ims.shape)],axis=-1)
-ims = np.float32(ims)
 
 # shuffle the ims, along the first axis
 np.random.shuffle(ims)
 
+# normalize slice 
+ims = np.float32(ims)
+# num_s = ims.shape[0]
+# ims = (ims-np.mean(ims,axis=(1,2)).reshape((num_s,1,1)))/np.std(ims,axis=(1,2)).reshape((num_s,1,1))
+
+# add complex axis
+ims = np.expand_dims(ims,axis=-1)
+ims = np.concatenate([ims, np.zeros(ims.shape)],axis=-1)
+
 # simulate downsampled ims with 2D undersample mask
 ims_sample, masks, k_sample = down_sample_with_mask(ims)
 
+# # test kspace symetry layer
+# from keras.layers import Input
+# from keras.models import Model
+# from .data_consistency_layer import symmetry_with_mask_layer
+
+# input = Input((256, 256, 4)) # do not consider batch as the first dimension
+# output = symmetry_with_mask_layer()(input)
+
+# model = Model(inputs=input, outputs=output)
+
+# input_data = np.concatenate((masks, k_sample),axis=-1)
+# output_ims = model.predict(input_data)
+# # output_ims = output_ims[:,:,:,2] + 1j*output_ims[:,:,:,3] # fetch image data from output
+# # output_ims = np.fft.fft2(output_ims)
+
+# for k in range(10):
+#     plt_mask = abs(masks[-k,:,:,0])
+#     plt_im_sample = abs(ims_sample[-k,:,:,0]+ims_sample[-k,:,:,1]*1j)
+#     plt_im_predict = abs(output_ims[-k,:,:])
+#     plt_full = abs(ims[-k,:,:,0]+ims[-k,:,:,1]*1j)
+    
+#     plt.figure()
+#     plt.subplot(1,4,1); plt.imshow(plt_mask)
+#     plt.subplot(1,4,2); plt.imshow(plt_im_sample)
+#     plt.subplot(1,4,3); plt.imshow(plt_im_predict)
+#     plt.subplot(1,4,4); plt.imshow(plt_full)
+#     plt.savefig('output/figures/phase_sym_'+str(k))
+    
 # pdb.set_trace()
 # build image data generator to send input 
 
@@ -91,11 +125,11 @@ history = recon_encoder.fit(
                       epochs=epochs,
                       verbose=1,
                       callbacks=[tensorboard],
-                      validation_split=0.2,
+                      validation_split=0.1,
                       shuffle=True,
                       initial_epoch=0)
 
-recon_encoder.save_weights('output/models/under_recon_180523.h5')
+recon_encoder.save_weights('output/models/under_recon_180524_sym.h5')
 
 # recon_encoder.load_weights('output/models/under_recon_180523.h5')
 
