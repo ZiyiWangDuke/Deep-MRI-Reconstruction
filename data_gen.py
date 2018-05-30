@@ -59,36 +59,63 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
     return transform
 
 # create data pipeline using Michal's code
-def create_data_pipeline_eval(batch_size):
-    return DataPipeline(
-        transforms.make_batches(batch_size),
-        transforms.transform_batches(
-            transforms.load_batch_data(
-                volume_transforms.load_volumes(),
+def create_data_pipeline_eval(batch_size, epoch_size, flag):
+    if flag == 'train':
+        return DataPipeline(
+            transforms.sample_dataframe_by_subject(epoch_size), # number of samples in each epoch
+            transforms.make_batches(batch_size),
+            transforms.transform_batches(
+                transforms.load_batch_data(
+                    volume_transforms.load_volumes(),
+                ),
+                data_transforms.RandomSampleSlices(axis = 2), # RandomSampleSlicesValid gives the same images
+                PullSliceKey(axis = 2),
+                to_kspace_undersample(),
+                image_transforms.set_data_format('channel_last'),
             ),
-            data_transforms.RandomSampleSlicesValid(axis = 2),
-            PullSliceKey(axis = 2),
-            to_kspace_undersample(),
-            image_transforms.set_data_format('channel_last'),
-        ),
-        transforms.buffer_data(),
-    )
+            transforms.buffer_data(),
+        )
+    elif flag == 'validation':
+        return DataPipeline(
+            transforms.weight_dataframe_by_inverse_subject_frequency(), # number of samples in each epoch
+            transforms.make_batches(batch_size),
+            transforms.transform_batches(
+                transforms.load_batch_data(
+                    volume_transforms.load_volumes(),
+                ),
+                data_transforms.RandomSampleSlicesValid(axis = 2), # RandomSampleSlicesValid gives the same images
+                PullSliceKey(axis = 2),
+                to_kspace_undersample(),
+                image_transforms.set_data_format('channel_last'),
+            ),
+            transforms.buffer_data(),
+        )
 
-def get_data_gen_model(data_type, batch_size):
+def get_data_gen_model(data_type, batch_size, flag, epoch_size=0):
     
     # data generator directory for training the model
     # data_type: train or valid
-    batch_iterator = create_data_pipeline_eval(batch_size=batch_size)(data_type)
-    
+    batch_iterator = create_data_pipeline_eval(batch_size=batch_size, epoch_size=epoch_size, flag=flag)(data_type)
+        
     while True:
-        dic_data = next(batch_iterator)
-        
+        # dirty way of starting it over from the beginning
+        try:
+            dic_data = next(batch_iterator)
+        except:
+            batch_iterator = create_data_pipeline_eval(batch_size=batch_size, epoch_size=epoch_size, flag=flag)(data_type)
+            dic_data = next(batch_iterator)
+               
         # get list from dictionary and convert to array
-        ims_sample = np.stack(dic_data["under_sample_image"], axis=0)
-        masks = np.stack(dic_data["sample_mask"], axis=0)
-        k_sample = np.stack(dic_data["k_samples"], axis=0)
+        ims_sample = np.float32(np.stack(dic_data["under_sample_image"], axis=0))
+        masks = np.float32(np.stack(dic_data["sample_mask"], axis=0))
+        k_sample = np.float32(np.stack(dic_data["k_samples"], axis=0))
         
-        yield [ims_sample, masks, k_sample]
+        # return original image as well
+        ims = np.float32(np.stack(dic_data["images"], axis=0))
+        # add an extra dim for ims
+        ims = np.concatenate([ims, np.zeros(ims.shape)], axis=-1)
+        
+        yield [ims_sample, masks, k_sample], ims
     
 
 if __name__ == '__main__':

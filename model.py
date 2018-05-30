@@ -13,7 +13,7 @@ import tensorflow as tf
 from keras.models import Model
 from keras.layers import Input, concatenate, Conv2D, Add
 from .fft_layer import fft_layer
-from .data_consistency_layer import data_consistency_with_mask_layer
+from .data_consistency_layer import data_consistency_with_mask_layer, symmetry_with_mask_layer
 
 img_w = 256
 img_h = 256
@@ -141,6 +141,4 @@ fft5 = data_consistency_with_mask_layer()(fft5)
 
 dc5 = fft_layer(fft_dir = False)(fft5)
 
-recon_encoder = Model(inputs = [input_img, input_mask, input_img_sampled], outputs = dc5)
-
-pdb.set_trace()
+recon_encoder = Model(inputs = [input_img, input_mask, input_k_sampled], outputs = dc5)

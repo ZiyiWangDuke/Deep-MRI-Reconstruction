@@ -117,6 +117,14 @@ def ssim_tensor(y_true, y_pred):
     
     return tf.image.ssim(y_true, y_pred, max_val=1.0)
 
+def loss_weight_mse(y_true, y_pred):
+    
+    ''' Custom loss function, weight by value '''
+    
+    mse_w = K.sum(K.square(y_pred - y_true)*K.abs(y_true))
+    
+    return mse_w
+
 # def data_gen(uteList,sourceDir):
 #     list_len = len(uteList)
 #     index = 0

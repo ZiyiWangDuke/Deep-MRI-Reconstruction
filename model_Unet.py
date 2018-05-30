@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import keras
 import tensorflow as tf
 from keras.models import Model
-from keras.layers import Input, concatenate, Conv2D, Add, BatchNormalization, Activation, MaxPooling2D, UpSampling2D
+from keras.layers import Input, concatenate, Conv2D, Conv2DTranspose, Add, BatchNormalization, Activation, MaxPooling2D, UpSampling2D
 from .fft_layer import fft_layer
 from .data_consistency_layer import data_consistency_with_mask_layer, symmetry_with_mask_layer
 
@@ -32,17 +32,13 @@ refer = concatenate([input_mask, input_k_sampled], axis=-1)
 # phase conjugate symmetry: skip this layer for complex input image
 
 # 5 conv sequential - using Segnet shape
-conv1 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(input_img)
-conv1 = MaxPooling2D()(conv1)
+conv1 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(input_img)
 
-conv1 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-conv1 = MaxPooling2D()(conv1)
+conv1 = Conv2D(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
-conv1 = Conv2D(filters = 128, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-conv1 = UpSampling2D()(conv1)
+conv1 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
-conv1 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-conv1 = UpSampling2D()(conv1)
+conv1 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
 conv1 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 # print("conv1 shape:",conv1.shape)
@@ -58,17 +54,13 @@ fft1 = data_consistency_with_mask_layer()(fft1)
 dc1 = fft_layer(fft_dir = False)(fft1)
 
 # 5 conv sequential
-conv2 = Conv2D(filters = 16, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc1)
-conv2 = MaxPooling2D()(conv2)
+conv2 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc1)
 
-conv2 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
-conv2 = MaxPooling2D()(conv2)
+conv2 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
 
-conv2 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
-conv2 = UpSampling2D()(conv2)
+conv2 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
 
-conv2 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
-conv2 = UpSampling2D()(conv2)
+conv2 = Conv2DTranspose(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
 
 conv2 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
 # print("conv2 shape:",conv2.shape)
@@ -84,17 +76,13 @@ fft2 = data_consistency_with_mask_layer()(fft2)
 dc2 = fft_layer(fft_dir = False)(fft2)
 
 # 5 conv sequential
-conv3 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc2)
-conv3 = MaxPooling2D()(conv3)
+conv3 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc2)
 
-conv3 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-conv3 = MaxPooling2D()(conv3)
+conv3 = Conv2D(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 
-conv3 = Conv2D(filters = 128, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-conv3 = UpSampling2D()(conv3)
+conv3 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 
-conv3 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-conv3 = UpSampling2D()(conv3)
+conv3 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 
 conv3 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 # print("conv3 shape:",conv3.shape)
@@ -110,17 +98,13 @@ fft3 = data_consistency_with_mask_layer()(fft3)
 dc3 = fft_layer(fft_dir = False)(fft3)
 
 # 5 conv sequential
-conv4 = Conv2D(filters = 16, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc3)
-conv4 = MaxPooling2D()(conv4)
+conv4 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc3)
 
-conv4 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-conv4 = MaxPooling2D()(conv4)
+conv4 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
 
-conv4 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-conv4 = UpSampling2D()(conv4)
+conv4 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
 
-conv4 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-conv4 = UpSampling2D()(conv4)
+conv4 = Conv2DTranspose(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
 
 conv4 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
 # print("conv3 shape:",conv3.shape)
@@ -136,17 +120,13 @@ fft4 = data_consistency_with_mask_layer()(fft4)
 dc4 = fft_layer(fft_dir = False)(fft4)
 
 # 5 conv sequential
-conv5 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc4)
-conv5 = MaxPooling2D()(conv5)
+conv5 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc4)
 
-conv5 = Conv2D(filters = 16, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-conv5 = MaxPooling2D()(conv5)
+conv5 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 
-conv5 = Conv2D(filters = 128, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-conv5 = UpSampling2D()(conv5)
+conv5 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 
-conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-conv5 = UpSampling2D()(conv5)
+conv5 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 
 conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal', 
                kernel_regularizer=keras.regularizers.l2(0.01),
@@ -158,7 +138,7 @@ res5 = Add()([dc4,conv5])
 # add data consistency layer here
 fft5 = fft_layer(fft_dir = True)(res5)
 
-refer = symmetry_with_mask_layer()(refer)
+# refer = symmetry_with_mask_layer()(refer)
 
 fft5 = concatenate([fft5, refer], axis=-1)
 fft5 = data_consistency_with_mask_layer()(fft5)
