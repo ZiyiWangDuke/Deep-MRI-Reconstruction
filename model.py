@@ -124,9 +124,9 @@ conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'sa
 # print("conv3 shape:",conv3.shape)
 conv5 = Conv2D(filters = 64, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 # print("conv3 shape:",conv3.shape)
-conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal', 
-               kernel_regularizer=keras.regularizers.l2(0.01),
-               activity_regularizer=keras.regularizers.l1(0.01))(conv5)
+conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
+               # kernel_regularizer=keras.regularizers.l2(0.01),
+               # activity_regularizer=keras.regularizers.l1(0.01))(conv5)
 # print("conv3 shape:",conv3.shape)
 
 # residual
@@ -134,7 +134,7 @@ res5 = Add()([dc4,conv5])
 # add data consistency layer here
 fft5 = fft_layer(fft_dir = True)(res5)
 
-refer = symmetry_with_mask_layer()(refer)
+# refer = symmetry_with_mask_layer()(refer)
 
 fft5 = concatenate([fft5, refer], axis=-1)
 fft5 = data_consistency_with_mask_layer()(fft5)

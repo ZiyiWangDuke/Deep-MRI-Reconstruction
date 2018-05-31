@@ -8,21 +8,72 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+import nibabel as nib
 
+import scipy.io as sio
+
+def read_int_mask(discreet_len, depth, file_flag):
+    
+    ''' read in mask from mat, and extrapolate it into 256*256 '''
+    
+    # read in coordinate from .mat
+    if(file_flag == 'strange'):
+        # the strange shape
+        img = sio.loadmat('dl_research/projects/under_recon/kcoords_1.mat')
+        cords = img['s']
+        cords = np.transpose(cords,(1,0))
+        # shape 2*num
+    elif(file_flag == 'using'):
+        # the big spiral circle that misses the outpart
+        import h5py
+        arrays = {}
+        f = h5py.File('dl_research/projects/under_recon/kcoords.mat')
+        for k, v in f.items():
+            arrays[k] = np.array(v)
+
+        cords = arrays['kcoords']
+    
+    mask = np.zeros((discreet_len,discreet_len))
+
+    for k in range(cords.shape[1]):
+
+        x = int(np.round(cords[0,k]*discreet_len))
+        y = int(np.round(cords[1,k]*discreet_len))
+        mask[x,y] = 1
+    
+    undersample_rate = np.sum(mask)/(1.0*discreet_len*discreet_len)
+    # stack mask into the shape required
+    mask = np.expand_dims(mask,axis=0)
+    mask = np.tile(mask,(depth,1,1))
+    
+    # return mask size depth*img_w*img_h
+    return np.float32(mask), undersample_rate
+        
 def var_2d_mask(shape,acc):
     
     ''' producing variant 2D undersample mask with input shape and accelarate rate '''
     
     mask = np.random.binomial(1, np.ones(shape)*(1.0/acc))
     
-    return np.float32(mask)
+    # shape: (36, 256, 256)
+    # center = 1
+    mask[:,98:158,98:158] = 1
+    
+    undersample_rate = np.sum(mask)/(np.prod(mask.shape)*1.0)
+    
+    return np.float32(mask), undersample_rate
 
 def down_sample_with_mask(ims):
     
     ''' simulate undersampled data with fully sampled image data and k-space sample mask '''
     
+    flag = 'using'
+    
     # the acc is set to be 3 at this moment
-    masks_single = var_2d_mask(shape=ims.shape[:-1],acc=3)
+    if flag == 'random':
+        masks_single, undersample_rate = var_2d_mask(shape=ims.shape[:-1],acc=3)
+    else:
+        masks_single, undersample_rate = read_int_mask(discreet_len=ims.shape[1], depth=ims.shape[0], file_flag=flag)
     
     # combine the 2 channels of ims into a complex 
     ims_cplx = ims[:,:,:,0] + ims[:,:,:,1]*1j
@@ -52,7 +103,7 @@ def down_sample_with_mask(ims):
     k_sample = np.stack([np.real(k_sample_cplx), np.imag(k_sample_cplx)], axis=-1)
     
     # return sampled recon images, and full k-space images
-    return np.float32(ims_sample), np.float32(masks), np.float32(k_sample)
+    return np.float32(ims_sample), np.float32(masks), np.float32(k_sample), undersample_rate
 
 
 ## keras call back function, observe output per epoch

@@ -128,9 +128,7 @@ conv5 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 
 
 conv5 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 
-conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal', 
-               kernel_regularizer=keras.regularizers.l2(0.01),
-               activity_regularizer=keras.regularizers.l1(0.01))(conv5)
+conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 # print("conv3 shape:",conv3.shape)
 
 # residual
@@ -138,13 +136,37 @@ res5 = Add()([dc4,conv5])
 # add data consistency layer here
 fft5 = fft_layer(fft_dir = True)(res5)
 
-refer = symmetry_with_mask_layer()(refer)
-
 fft5 = concatenate([fft5, refer], axis=-1)
 fft5 = data_consistency_with_mask_layer()(fft5)
 
 dc5 = fft_layer(fft_dir = False)(fft5)
 
-recon_encoder = Model(inputs = [input_img, input_mask, input_k_sampled], outputs = dc5)
+# 5 conv sequential
+conv6 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc5)
+
+conv6 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv6)
+
+conv6 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv6)
+
+conv6 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv6)
+
+conv6 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal', 
+               kernel_regularizer=keras.regularizers.l2(0.01),
+               activity_regularizer=keras.regularizers.l1(0.01))(conv6)
+# print("conv3 shape:",conv3.shape)
+
+# residual
+res6 = Add()([dc5,conv6])
+# add data consistency layer here
+fft6 = fft_layer(fft_dir = True)(res6)
+
+refer = symmetry_with_mask_layer()(refer)
+
+fft6 = concatenate([fft6, refer], axis=-1)
+fft6 = data_consistency_with_mask_layer()(fft6)
+
+dc6 = fft_layer(fft_dir = False)(fft6)
+
+recon_encoder = Model(inputs = [input_img, input_mask, input_k_sampled], outputs = dc6)
 
 # pdb.set_trace()

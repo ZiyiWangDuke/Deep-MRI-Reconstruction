@@ -3,6 +3,8 @@
 #     MCD2_METADATA_CSV,
 # )
 
+# RUN_LABEL="unet_big" USERNAME=zwang ./qsub-run.sh  python -m dl_research.projects.under_recon.Train_hp_datagen 
+
 from dl_research.projects.degrade.scripts.slices import (
     get_anatomical_filter,
     get_axial_filter,
@@ -25,7 +27,7 @@ from dl_research.common.data.hri import load_split_data_from_dicom_conversion
 
 from .utils_functions import var_2d_mask, down_sample_with_mask, relative_error_center_30pix, loss_weight_mse
 from .utils_keras import TensorBoardImage
-from .model import recon_encoder
+from .model_Unet_big import recon_encoder
 from .data_gen import get_data_gen_model
 
 import os, pdb
@@ -48,11 +50,11 @@ data_train, data_valid = load_split_data_from_dicom_conversion(
 )
 
 batch_size = 10
-epochs = 20
+epochs = 200
 slice_subject = 22 # approximate
 
-steps_per_epoch = int(len(data_train)*slice_subject/batch_size/100)
-validation_steps = int(len(data_valid)*slice_subject/batch_size/50)
+steps_per_epoch = int(len(data_train)*slice_subject/batch_size/10)
+validation_steps = int(len(data_valid)*slice_subject/batch_size/5)
 
 epoch_size = steps_per_epoch * batch_size
 
@@ -64,29 +66,29 @@ del data_valid
 
 ''' callback functions to monitor trainning progress '''
 
-tensor_log_dir = "output/keras_logs/{}_small_test".format(datetime.strftime(datetime.now(), '%Y_%m_%d_%H_%M'))
+tensor_log_dir = "output/keras_logs/{}_unet_big/".format(datetime.strftime(datetime.now(), '%Y_%m_%d_%H_%M'))
 
 tensorboard = keras.callbacks.TensorBoard(log_dir=tensor_log_dir,
                                           write_grads=False, # write grads take a significant amount of memory
                                           write_images=False,
                                           histogram_freq=0)
 
-tensorimages = TensorBoardImage(log_dir=tensor_log_dir, tag='Predicted Imags', test_ims=next(batch_iterator_valid)[0])
+# tensorimages = TensorBoardImage(log_dir=tensor_log_dir, tag='Predicted Imags', num_ims = 5, test_ims=next(batch_iterator_valid)[0])
 
 ''' load model and train '''
 
 recon_encoder.summary()
-recon_encoder.compile(loss=loss_weight_mse, optimizer='adam', metrics=[relative_error_center_30pix],sample_weight_mode='temporal')
+recon_encoder.compile(loss="mean_squared_error", optimizer='adam', metrics=[relative_error_center_30pix],sample_weight_mode='temporal')
 
 history = recon_encoder.fit_generator(
                       generator=batch_iterator_train, 
                       steps_per_epoch=steps_per_epoch, 
                       epochs=epochs, 
-                      callbacks=[tensorimages], 
+                      callbacks=[tensorboard], 
                       validation_data=batch_iterator_valid, 
                       validation_steps=validation_steps)
 
-recon_encoder.save_weights('output/models/under_recon_180525.h5')
+recon_encoder.save_weights('output/models/under_recon_180531_unet_big.h5')
 
 # recon_encoder.load_weights('output/models/under_recon_180523.h5')
 
