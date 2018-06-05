@@ -88,11 +88,11 @@ class data_consistency_with_mask_layer(Layer):
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        # self.lam = self.add_weight(name='lambda',
-        #                            initializer='uniform',
-        #                            # initializer = keras.initializers.Constant(value=100.0),
-        #                            shape=(),
-        #                            trainable=True)
+        self.confidence = self.add_weight(name='confidence',
+                                   # initializer='uniform',
+                                   initializer = keras.initializers.Constant(1.0),
+                                   shape=(),
+                                   trainable=True)
 
         super(data_consistency_with_mask_layer, self).build(input_shape)  # Be sure to call this at the end
 
@@ -112,7 +112,7 @@ class data_consistency_with_mask_layer(Layer):
         #     output = (x + self.lam * xk_sampled) / (1 + self.lam)
         # else:  # noiseless case, essentially just using the original data
         #     output = (1 - mask) * x + xk_sampled
-        output = (1 - mask) * x + xk_sampled * mask
+        output = (1 - mask * self.confidence) * x + xk_sampled * mask * self.confidence
 
         return output
 

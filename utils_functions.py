@@ -11,6 +11,22 @@ import matplotlib.pyplot as plt
 import nibabel as nib
 
 import scipy.io as sio
+import scipy.stats as st
+
+def gen_2D_Gaussian(kernlen, nsig):
+    
+    """Returns a 2D Gaussian kernel array."""
+    # kernlen: length of mask, in our case 256
+    # nsig: like SD, 2.2: 50%, 3.5: 25%
+    
+    interval = (2*nsig+1.)/(kernlen)
+    x = np.linspace(-nsig-interval/2., nsig+interval/2., kernlen+1)
+    kern1d = np.diff(st.norm.cdf(x))
+    kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
+    
+    kernel = kernel_raw/np.max(kernel_raw)
+
+    return kernel
 
 def read_int_mask(discreet_len, depth, file_flag):
     
@@ -67,11 +83,22 @@ def down_sample_with_mask(ims):
     
     ''' simulate undersampled data with fully sampled image data and k-space sample mask '''
     
-    flag = 'using'
+    flag = 'gaussian'
     
     # the acc is set to be 3 at this moment
     if flag == 'random':
         masks_single, undersample_rate = var_2d_mask(shape=ims.shape[:-1],acc=3)
+        # shape 36*256*256
+        
+    elif flag == 'gaussian':
+        kernel = gen_2D_Gaussian(kernlen=ims.shape[1], nsig=2.95) # acc = 3, 2.95
+        masks_single = np.random.binomial(1, np.multiply(np.ones(ims.shape[1]),kernel))
+        masks_single = np.fft.fftshift(masks_single)
+        
+        undersample_rate = np.sum(masks_single)/np.prod(masks_single.shape)
+        
+        masks_single = np.expand_dims(masks_single,axis=0)
+        masks_single = np.tile(masks_single,(ims.shape[0],1,1))
     else:
         masks_single, undersample_rate = read_int_mask(discreet_len=ims.shape[1], depth=ims.shape[0], file_flag=flag)
     
@@ -139,7 +166,7 @@ def relative_error_center_30pix(y_true, y_pred):
     ''' Keras Metric: calculate the average of relative error of the center 30 pixels '''
     
     # assume it is a square image
-    dim = 256
+    dim = 128
     center = 30
     dim_st = np.int32(dim/2-center)
     dim_end = np.int32(dim/2+center)

@@ -134,7 +134,7 @@ res5 = Add()([dc4,conv5])
 # add data consistency layer here
 fft5 = fft_layer(fft_dir = True)(res5)
 
-# refer = symmetry_with_mask_layer()(refer)
+refer = symmetry_with_mask_layer()(refer)
 
 fft5 = concatenate([fft5, refer], axis=-1)
 fft5 = data_consistency_with_mask_layer()(fft5)

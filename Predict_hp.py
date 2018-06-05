@@ -26,7 +26,7 @@ def zwang_filter(df):
     )
 
 from .utils_functions import var_2d_mask, down_sample_with_mask, relative_error_center_30pix, loss_weight_mse
-from .model import recon_encoder
+from .model_Unet import recon_encoder
 from .data_gen import get_data_gen_model
 
 import os, pdb
@@ -40,25 +40,25 @@ import matplotlib.pyplot as plt
 
 import keras 
 
-recon_encoder.load_weights('output/models/under_recon_180530_original.h5')
+recon_encoder.load_weights('output/models/under_recon_180601_unet_gaussian.h5')
 data_csv = '/data2/hyperfine/dl-data-annotator/degrade/2018-03-06-1/data.csv'
 
 data_train, data_valid = load_split_data_from_dicom_conversion(
-    data_csvs=[(data_csv, os.path.dirname(data_csv))],
-    # data_csvs=[(MCD1_METADATA_CSV, os.path.dirname(MCD1_METADATA_CSV))],
-    # df_filter=zwang_filter,
+    # data_csvs=[(data_csv, os.path.dirname(data_csv))],
+    data_csvs=[(MCD1_METADATA_CSV, os.path.dirname(MCD1_METADATA_CSV))],
+    df_filter=zwang_filter,
+    valid_frac = 0.2 
     
 )
 
-batch_size = 10
+batch_size = 20
 epochs = 20
 steps_per_epoch = int(len(data_train)/batch_size)
 # validation_steps = int(len(data_valid)/batch_size)
 epoch_size = batch_size*steps_per_epoch
 
-batch_iterator_train = get_data_gen_model(data_type=data_train, batch_size=batch_size, epoch_size=epoch_size, flag='train')
-# batch_iterator_valid = get_data_gen_model(data_type=data_valid, batch_size=batch_size, epoch_size=epoch_size, flag='validation')
-
+# batch_iterator_train = get_data_gen_model(data_type=data_train, batch_size=batch_size, epoch_size=epoch_size, flag='train')
+batch_iterator_valid = get_data_gen_model(data_type=data_valid, batch_size=batch_size, epoch_size=epoch_size, flag='validation')
 
 # ims = np.float32(ims)
 # # num_s = ims.shape[0]
@@ -70,7 +70,8 @@ batch_iterator_train = get_data_gen_model(data_type=data_train, batch_size=batch
 
 # # simulate downsampled ims with 2D undersample mask
 # ims_sample, masks, k_sample = down_sample_with_mask(ims)
-test_input = next(batch_iterator_train)
+test_input = next(batch_iterator_valid)
+
 # test_input = next(batch_iterator_train)
 # pdb.set_trace()
 model_out = recon_encoder.predict(test_input[0]) # input
@@ -93,10 +94,26 @@ for k in range(batch_size):
     plt_full = abs(ims[k,:,:,0]+ims[k,:,:,1]*1j)
     
     plt.figure()
-    plt.subplot(1,4,1); plt.imshow(plt_mask)
-    plt.subplot(1,4,2); plt.imshow(plt_im_sample)
-    plt.subplot(1,4,3); plt.imshow(plt_im_predict)
-    plt.subplot(1,4,4); plt.imshow(plt_full)
+    vmin = np.min(plt_full)
+    vmax = np.max(plt_full)
+
+    plt.subplot(2,4,1); plt.imshow(np.fft.fftshift(plt_mask)); plt.title('sample 0.33');plt.axis('off')
+    plt.subplot(2,4,2); plt.imshow(plt_im_sample,vmin=vmin,vmax=vmax);plt.title('zero_filling');plt.axis('off')
+    plt.subplot(2,4,3); plt.imshow(plt_im_predict,vmin=vmin,vmax=vmax);plt.title('CNN recon');plt.axis('off')
+    plt.subplot(2,4,4); plt.imshow(plt_full,vmin=vmin,vmax=vmax);plt.title('Full sample');plt.axis('off')
+    
+    dif1 = abs(plt_im_sample-plt_full)
+    dif2 = abs(plt_im_predict-plt_full)
+
+    mean_dif1 = np.mean(dif1)/(np.mean(plt_full)*1.0)
+    mean_dif2 = np.mean(dif2)/(np.mean(plt_full)*1.0)
+
+    vmin = np.min(dif1)
+    vmax = np.max(dif2)
+
+    plt.subplot(2,4,6); plt.imshow(dif1,vmin=vmin,vmax=vmax);plt.title('R_Dif {:.4f}'.format(mean_dif1));plt.axis('off')
+    plt.subplot(2,4,7); plt.imshow(dif2,vmin=vmin,vmax=vmax);plt.title('R_Dif {:.4f}'.format(mean_dif2));plt.axis('off')
+    
     plt.savefig('output/figures/predict_train_'+str(k))
     plt.close()
 

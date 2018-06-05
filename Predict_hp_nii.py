@@ -38,10 +38,15 @@ img_256 = np.stack((img_256,np.zeros(img_256.shape)),axis=-1)
 ims_sample, masks, k_sample, down_rate = down_sample_with_mask(img_256)
 
 # model import
-recon_encoder.load_weights('output/models/under_recon_180530_unet.h5')
+recon_encoder.load_weights('output/models/under_recon_180601_unet_gaussian.h5')
 # pdb.set_trace()
 
+import time
+
+start_time = time.time()
 model_out = recon_encoder.predict([ims_sample, masks, k_sample])
+end_time = time.time()
+print((end_time-start_time)/model_out.shape[0])
 
 for k in range(img_256.shape[0]):
     
@@ -50,11 +55,24 @@ for k in range(img_256.shape[0]):
     plt_im_predict = abs(model_out[k,:,:,0]+model_out[k,:,:,1]*1j)
     plt_full = abs(img_256[k,:,:,0]+img_256[k,:,:,1]*1j)
     
+    
     plt.figure()
-    plt.subplot(1,4,1); plt.imshow(np.fft.fftshift(plt_mask)); plt.title('sample {:.2f}'.format(down_rate))
-    plt.subplot(1,4,2); plt.imshow(plt_im_sample);plt.title('zero_filling')
-    plt.subplot(1,4,3); plt.imshow(plt_im_predict);plt.title('CNN recon')
-    plt.subplot(1,4,4); plt.imshow(plt_full);plt.title('Full sample')
+    plt.subplot(2,4,1); plt.imshow(np.fft.fftshift(plt_mask)); plt.title('sample {:.2f}'.format(down_rate));plt.axis('off')
+    plt.subplot(2,4,2); plt.imshow(plt_im_sample);plt.title('zero_filling');plt.axis('off')
+    plt.subplot(2,4,3); plt.imshow(plt_im_predict);plt.title('CNN recon');plt.axis('off')
+    plt.subplot(2,4,4); plt.imshow(plt_full);plt.title('Full sample');plt.axis('off')
+    
+    dif1 = abs(plt_im_sample-plt_full)
+    dif2 = abs(plt_im_predict-plt_full)
+
+    mean_dif1 = np.mean(dif1)/(np.mean(plt_full)*1.0)
+    mean_dif2 = np.mean(dif2)/(np.mean(plt_full)*1.0)
+    vmin = np.min(dif1)
+    vmax = np.max(dif2)
+    
+    plt.subplot(2,4,6); plt.imshow(dif1,vmin=vmin,vmax=vmax);plt.title('{:.2f}'.format(mean_dif1));plt.axis('off')
+    plt.subplot(2,4,7); plt.imshow(dif2,vmin=vmin,vmax=vmax);plt.title('{:.2f}'.format(mean_dif2));plt.axis('off')
+    
     plt.savefig('output/figures/predict_hp_unet_using_'+str(k))
     plt.close()
     print('printing figure '+str(k))
