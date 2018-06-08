@@ -13,6 +13,8 @@ import nibabel as nib
 import scipy.io as sio
 import scipy.stats as st
 
+from .data_gen import read_2D_Distmesh
+
 def gen_2D_Gaussian(kernlen, nsig):
     
     """Returns a 2D Gaussian kernel array."""
@@ -79,11 +81,11 @@ def var_2d_mask(shape,acc):
     
     return np.float32(mask), undersample_rate
 
-def down_sample_with_mask(ims):
+def down_sample_with_mask(ims, flag):
     
     ''' simulate undersampled data with fully sampled image data and k-space sample mask '''
     
-    flag = 'gaussian'
+    # flag = 'distmesh'
     
     # the acc is set to be 3 at this moment
     if flag == 'random':
@@ -99,6 +101,15 @@ def down_sample_with_mask(ims):
         
         masks_single = np.expand_dims(masks_single,axis=0)
         masks_single = np.tile(masks_single,(ims.shape[0],1,1))
+    elif flag == 'distmesh':
+        masks_single = read_2D_Distmesh()
+        masks_single = np.fft.fftshift(masks_single)
+        
+        undersample_rate = np.sum(masks_single)/np.prod(masks_single.shape)
+        
+        masks_single = np.expand_dims(masks_single,axis=0)
+        masks_single = np.tile(masks_single,(ims.shape[0],1,1))
+        # shape 128*128
     else:
         masks_single, undersample_rate = read_int_mask(discreet_len=ims.shape[1], depth=ims.shape[0], file_flag=flag)
     

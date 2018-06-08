@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-''' A improved model using Unet structure and mixed '''
+''' A improved model using Unet structure '''
 
 from __future__ import print_function, division
 
@@ -13,13 +13,12 @@ import matplotlib.pyplot as plt
 import keras
 import tensorflow as tf
 from keras.models import Model
-from keras.layers import Input, concatenate, Conv2D, Conv2DTranspose, Add, LocallyConnected2D
+from keras.layers import Input, concatenate, Conv2D, Conv2DTranspose, Add, BatchNormalization, Activation, MaxPooling2D, UpSampling2D
 from .fft_layer import fft_layer
 from .data_consistency_layer import data_consistency_with_mask_layer, symmetry_with_mask_layer
-from .kspace_weight_layer import kspace_weight_layer, kspace_padding_layer
 
-img_w = 128 # 256
-img_h = 128 # 256
+img_w = 128 #256
+img_h = 128 #256
 
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -32,34 +31,31 @@ input_k_sampled = Input(( img_w, img_h, 2)) # k space sampled
 refer = concatenate([input_mask, input_k_sampled], axis=-1)
 # phase conjugate symmetry: skip this layer for complex input image
 
-input_fft = fft_layer(fft_dir = True)(input_img)
+# 5 conv sequential - using Segnet shape, the top layer does not downsample
+conv1 = Conv2D(filters = 32, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(input_img)
 
-# 5 conv sequential - using Segnet shape
-# conv1 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(input_fft)
+conv1 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
-# conv1 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
+conv1 = Conv2D(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
-input_pad = kspace_padding_layer(pad_len=1)(input_fft)
+conv1 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
-conv1 = LocallyConnected2D(filters = 8, kernel_size = 3, activation = 'relu', kernel_initializer = 'he_normal')(input_pad)
-
-# conv1 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
-
-# conv1 = Conv2DTranspose(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
+conv1 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
 conv1 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 # print("conv1 shape:",conv1.shape)
 
 # residual
-res1 = Add()([input_fft,conv1])
+res1 = Add()([input_img,conv1])
 # add data consistency layer here
+fft1 = fft_layer(fft_dir = True)(res1)
 
-res1 = concatenate([res1, refer], axis=-1)
-dc1 = data_consistency_with_mask_layer()(res1)
+fft1 = concatenate([fft1, refer], axis=-1)
+fft1 = data_consistency_with_mask_layer()(fft1)
 
-dc1 = fft_layer(fft_dir = False)(dc1)
+dc1 = fft_layer(fft_dir = False)(fft1)
 
-# 5 conv sequential, stays in k-space
+# 5 conv sequential
 conv2 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc1)
 
 conv2 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv2)
@@ -74,21 +70,21 @@ conv2 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res2 = Add()([dc1,conv2])
 # add data consistency layer here
+fft2 = fft_layer(fft_dir = True)(res2)
 
-res2 = fft_layer(fft_dir = True)(res2)
+fft2 = concatenate([fft2, refer], axis=-1)
+fft2 = data_consistency_with_mask_layer()(fft2)
 
-res2 = concatenate([res2, refer], axis=-1)
-dc2 = data_consistency_with_mask_layer()(res2)
+dc2 = fft_layer(fft_dir = False)(fft2)
 
+# 5 conv sequential
+conv3 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc2)
 
-# 5 conv sequential, in Kspace 
-conv3 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc2)
+conv3 = Conv2D(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 
-conv3 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
+conv3 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 
 conv3 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
-
-conv3 = Conv2DTranspose(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 
 conv3 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv3)
 # print("conv3 shape:",conv3.shape)
@@ -96,13 +92,14 @@ conv3 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res3 = Add()([dc2,conv3])
 # add data consistency layer here
+fft3 = fft_layer(fft_dir = True)(res3)
 
-res3 = concatenate([res3, refer], axis=-1)
-dc3 = data_consistency_with_mask_layer()(res3)
+fft3 = concatenate([fft3, refer], axis=-1)
+fft3 = data_consistency_with_mask_layer()(fft3)
 
-dc3 = fft_layer(fft_dir = False)(dc3)
+dc3 = fft_layer(fft_dir = False)(fft3)
 
-# 5 conv sequential, in image domain
+# 5 conv sequential
 conv4 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc3)
 
 conv4 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
@@ -117,22 +114,21 @@ conv4 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res4 = Add()([dc3,conv4])
 # add data consistency layer here
-# fft4 = fft_layer(fft_dir = True)(res4)
+fft4 = fft_layer(fft_dir = True)(res4)
 
-res4 = fft_layer(fft_dir = True)(res4)
+fft4 = concatenate([fft4, refer], axis=-1)
+fft4 = data_consistency_with_mask_layer()(fft4)
 
-res4 = concatenate([res4, refer], axis=-1)
-dc4 = data_consistency_with_mask_layer()(res4)
+dc4 = fft_layer(fft_dir = False)(fft4)
 
+# 5 conv sequential
+conv5 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc4)
 
-# 5 conv sequential, in kspace
-conv5 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(dc4)
+conv5 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 
-conv5 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
+conv5 = Conv2DTranspose(filters = 128, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 
 conv5 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-
-conv5 = Conv2DTranspose(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
 
 conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal', 
                kernel_regularizer=keras.regularizers.l2(0.01),
@@ -142,15 +138,15 @@ conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res5 = Add()([dc4,conv5])
 # add data consistency layer here
+fft5 = fft_layer(fft_dir = True)(res5)
 
 refer = symmetry_with_mask_layer()(refer)
 
-res5 = concatenate([res5, refer], axis=-1)
-dc5 = data_consistency_with_mask_layer()(res5)
+fft5 = concatenate([fft5, refer], axis=-1)
+fft5 = data_consistency_with_mask_layer()(fft5)
 
-dc5 = fft_layer(fft_dir = False)(dc5)
+dc5 = fft_layer(fft_dir = False)(fft5)
 
 recon_encoder = Model(inputs = [input_img, input_mask, input_k_sampled], outputs = dc5)
 
-# recon_encoder.summary()
 # pdb.set_trace()

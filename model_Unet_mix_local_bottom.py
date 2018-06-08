@@ -35,17 +35,17 @@ refer = concatenate([input_mask, input_k_sampled], axis=-1)
 input_fft = fft_layer(fft_dir = True)(input_img)
 
 # 5 conv sequential - using Segnet shape
-# conv1 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(input_fft)
+conv1 = Conv2D(filters = 16, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(input_fft)
 
-# conv1 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
+conv1 = Conv2D(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
-input_pad = kspace_padding_layer(pad_len=1)(input_fft)
+conv1 = kspace_padding_layer(pad_len=1)(conv1)
 
-conv1 = LocallyConnected2D(filters = 8, kernel_size = 3, activation = 'relu', kernel_initializer = 'he_normal')(input_pad)
+conv1 = LocallyConnected2D(filters = 8, kernel_size = 3, activation = 'relu', kernel_initializer = 'he_normal')(conv1)
 
-# conv1 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
+conv1 = Conv2DTranspose(filters = 64, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
-# conv1 = Conv2DTranspose(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
+conv1 = Conv2DTranspose(filters = 32, kernel_size = 3, strides=2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 
 conv1 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
 # print("conv1 shape:",conv1.shape)

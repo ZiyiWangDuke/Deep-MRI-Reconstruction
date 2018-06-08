@@ -125,9 +125,9 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
         else:
             raise ValueError('A bad traj_key is set, check data_gen')
         
-        mask_jig = jiggle_mask(mask)
+        # mask_jig = jiggle_mask(mask)
         
-        mask_jig = np.stack([mask_jig,mask_jig],axis=-1)
+        # mask_jig = np.stack([mask_jig,mask_jig],axis=-1)
         mask = np.stack([mask,mask],axis=-1)
         # mask: 128*128*2
         
@@ -137,7 +137,7 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
         under_image = np.stack([np.real(under_image), np.imag(under_image)], axis=-1)
         
         # change here
-        return im_k_space, mask_jig, k_sample, under_image, img
+        return im_k_space, mask, k_sample, under_image, img
 
     def transform(data):
         big_lst  = [
@@ -159,6 +159,12 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
 
 # create data pipeline using Michal's code
 def create_data_pipeline_eval(batch_size, epoch_size, flag):
+    scale_limits = (0.78, 1.20)
+    rotation_limits = (-5., 5.)
+    translation_limits = (-10., 10.)
+    snr_db = 9.0
+    data_shape = (256,256)
+    
     if flag == 'train':
         return DataPipeline(
             transforms.sample_dataframe_by_subject(epoch_size), # number of samples in each epoch
@@ -167,6 +173,21 @@ def create_data_pipeline_eval(batch_size, epoch_size, flag):
                 transforms.load_batch_data(
                     volume_transforms.load_volumes(),
                 ),
+                # gen transform
+                data_transforms.generate_slices_similarity_transforms(
+                    target_size_in_plane=data_shape,
+                    scale=scale_limits,
+                    rotation=rotation_limits,
+                    translation=translation_limits,
+                ),
+                # apply transform
+                volume_transforms.similarity_transform_volumes(
+                    data_shape,
+                    target_shapes_key='target_shapes',
+                ),
+                # add noise
+                data_transforms.AddNoise(snr_db=snr_db),
+                
                 data_transforms.RandomSampleSlices(axis = 2), # RandomSampleSlicesValid gives the same images
                 PullSliceKey(axis = 2),
                 to_kspace_undersample(),
@@ -182,6 +203,10 @@ def create_data_pipeline_eval(batch_size, epoch_size, flag):
                 transforms.load_batch_data(
                     volume_transforms.load_volumes(),
                 ),
+                
+                # use sudo-random, always the same noise 
+                data_transforms.AddNoiseValid(snr_db=snr_db),
+                
                 data_transforms.RandomSampleSlicesValid(axis = 2), # RandomSampleSlicesValid gives the same images
                 PullSliceKey(axis = 2),
                 to_kspace_undersample(),

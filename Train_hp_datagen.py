@@ -3,7 +3,7 @@
 #     MCD2_METADATA_CSV,
 # )
 
-# RUN_LABEL="unet_dist_jig" USERNAME=zwang ./qsub-run.sh  python -m dl_research.projects.under_recon.Train_hp_datagen 
+# RUN_LABEL="unet_dist_mix_local_e300" USERNAME=zwang ./qsub-run.sh  python -m dl_research.projects.under_recon.Train_hp_datagen
 
 from dl_research.projects.degrade.scripts.slices import (
     get_anatomical_filter,
@@ -50,7 +50,7 @@ data_train, data_valid = load_split_data_from_dicom_conversion(
 )
 
 batch_size = 10
-epochs = 150
+epochs = 300
 slice_subject = 22 # approximate
 
 steps_per_epoch = int(len(data_train)*slice_subject/batch_size/10)
@@ -61,12 +61,19 @@ epoch_size = steps_per_epoch * batch_size
 batch_iterator_train = get_data_gen_model(data_type=data_train, batch_size=batch_size, epoch_size=epoch_size, flag='train')
 batch_iterator_valid = get_data_gen_model(data_type=data_valid, batch_size=batch_size, epoch_size=epoch_size, flag='validation')
 
+# [ims_sample, masks, k_sample], ims = next(batch_iterator_train)
+# for k in range(10):
+#     plt.imshow(ims[k,:,:,0]);plt.axis('off')
+#     plt.savefig('output/figures/test_gen'+str(k))
+
+# pdb.set_trace()
+
 del data_train
 del data_valid
 
 ''' callback functions to monitor trainning progress '''
 
-tensor_log_dir = "output/keras_logs/{}_unet_distmesh_jig/".format(datetime.strftime(datetime.now(), '%Y_%m_%d_%H_%M'))
+tensor_log_dir = "output/keras_logs/{}_unet_distmesh_mix_local_e300_aug/".format(datetime.strftime(datetime.now(), '%Y_%m_%d_%H_%M'))
 
 tensorboard = keras.callbacks.TensorBoard(log_dir=tensor_log_dir,
                                           write_grads=False, # write grads take a significant amount of memory
@@ -84,11 +91,11 @@ history = recon_encoder.fit_generator(
                       generator=batch_iterator_train, 
                       steps_per_epoch=steps_per_epoch, 
                       epochs=epochs, 
-                      # callbacks=[tensorboard], 
+                      callbacks=[tensorboard], 
                       validation_data=batch_iterator_valid, 
                       validation_steps=validation_steps)
 
-recon_encoder.save_weights('output/models/under_recon_180605_unet_distmesh_128_jig.h5')
+recon_encoder.save_weights('output/models/under_recon_180607_unet_distmesh_mix_local_e300_aug.h5')
 
 # recon_encoder.load_weights('output/models/under_recon_180523.h5')
 
