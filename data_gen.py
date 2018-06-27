@@ -11,7 +11,7 @@ from dl_research.projects.degrade.scripts.slices import (
 )
 from dl_research.projects.quality_ae_spatial import data_transforms
 from dl_research.papers.automap.transforms import PullSliceKey, to_freq_space
-from dl_research.papers.automap.data import axial_non_dw_filter_256, load_data
+from dl_research.papers.automap.data import axial_non_dw_filter_256 #, load_data
 
 import pdb,os
 import numpy as np
@@ -21,6 +21,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import scipy.stats as st
+from .phase_gen import gen_phase
 
 def jiggle_mask(mask):
     
@@ -100,13 +101,17 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
     
     def transform_img(img):
         # downsample from 256 to 128
+        # img=np.squeeze(img[::2,::2,:])
         img=img[::2,::2,:]
+        
+        # generate artifact phase for the image
+        img_wphase = gen_phase(img)
+        # pdb.set_trace()
         
         shape = img.shape[:2]
         traj_key = 'distmesh' 
         
-        
-        im_k_space = np.fft.fft2(np.squeeze(img, axis=-1))
+        im_k_space = np.fft.fft2(np.squeeze(img_wphase, axis=-1))
         # pdb.set_trace()
         im_k_space = np.stack([np.real(im_k_space), np.imag(im_k_space)], axis=-1)
         
@@ -136,8 +141,11 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
         under_image = np.fft.ifft2(k_sample[:,:,0]+k_sample[:,:,1]*1j)
         under_image = np.stack([np.real(under_image), np.imag(under_image)], axis=-1)
         
+        img_wphase = np.squeeze(img_wphase)
+        img_wphase = np.stack([np.real(img_wphase), np.imag(img_wphase)], axis=-1)
         # change here
-        return im_k_space, mask, k_sample, under_image, img
+        # element 0, 1, 2, 3, 4
+        return im_k_space, mask, k_sample, under_image, img_wphase
 
     def transform(data):
         big_lst  = [
@@ -164,6 +172,7 @@ def create_data_pipeline_eval(batch_size, epoch_size, flag):
     translation_limits = (-10., 10.)
     snr_db = 9.0
     data_shape = (256,256)
+    gamma_augmentation_range = (0.8, 1.2)
     
     if flag == 'train':
         return DataPipeline(
@@ -187,6 +196,12 @@ def create_data_pipeline_eval(batch_size, epoch_size, flag):
                 ),
                 # add noise
                 data_transforms.AddNoise(snr_db=snr_db),
+                
+                # add gamma transform
+                # volume_transforms.augment_gamma_nifti(
+                #     min=0.8,
+                #     max=1.2
+                # ), only work for positive value
                 
                 data_transforms.RandomSampleSlices(axis = 2), # RandomSampleSlicesValid gives the same images
                 PullSliceKey(axis = 2),
@@ -235,38 +250,41 @@ def get_data_gen_model(data_type, batch_size, flag, epoch_size=0):
         k_sample = np.float32(np.stack(dic_data["k_samples"], axis=0))
         
         # return original image as well
+        # ims = np.float32(np.stack(dic_data["images"], axis=0))
+        # # add an extra dim for ims
+        # ims = np.concatenate([ims, np.zeros(ims.shape)], axis=-1)
+        
+        # with phase, ims is complex64
         ims = np.float32(np.stack(dic_data["images"], axis=0))
-        # add an extra dim for ims
-        ims = np.concatenate([ims, np.zeros(ims.shape)], axis=-1)
         
         yield [ims_sample, masks, k_sample], ims
     
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     
-    data_train, data_valid = load_data(
-    data_csvs=[(MCD1_METADATA_CSV, os.path.dirname(MCD1_METADATA_CSV))], df_filter=axial_non_dw_filter_256)
+#     data_train, data_valid = load_data(
+#     data_csvs=[(MCD1_METADATA_CSV, os.path.dirname(MCD1_METADATA_CSV))], df_filter=axial_non_dw_filter_256)
     
-    batch_iterator_train = get_data_gen_model(data_type=data_train, batch_size=32)
-    batch_iterator_valid = get_data_gen_model(data_type=data_valid, batch_size=32)
+#     batch_iterator_train = get_data_gen_model(data_type=data_train, batch_size=32)
+#     batch_iterator_valid = get_data_gen_model(data_type=data_valid, batch_size=32)
     
-    arr = next(batch_iterator_train)
+#     arr = next(batch_iterator_train)
     
-    ims_sample = arr[0]
-    masks = arr[1]
-    k_sample = arr[2]
+#     ims_sample = arr[0]
+#     masks = arr[1]
+#     k_sample = arr[2]
     
-    for k in range(10):
-        # pdb.set_trace()
-        plt_mask = abs(masks[-k,:,:,0])
-        plt_im_sample = abs(ims_sample[-k,:,:,0]+ims_sample[-k,:,:,1]*1j)
-        plt_k_sample = abs(k_sample[-k,:,:,0]+k_sample[-k,:,:,1]*1j)
+#     for k in range(10):
+#         # pdb.set_trace()
+#         plt_mask = abs(masks[-k,:,:,0])
+#         plt_im_sample = abs(ims_sample[-k,:,:,0]+ims_sample[-k,:,:,1]*1j)
+#         plt_k_sample = abs(k_sample[-k,:,:,0]+k_sample[-k,:,:,1]*1j)
 
-        plt.figure()
-        plt.subplot(1,4,1); plt.imshow(plt_mask)
-        plt.subplot(1,4,2); plt.imshow(plt_im_sample)
-        plt.subplot(1,4,3); plt.imshow(plt_k_sample)
-        plt.savefig('output/figures/predict_im_'+str(k))
-        plt.clf()
+#         plt.figure()
+#         plt.subplot(1,4,1); plt.imshow(plt_mask)
+#         plt.subplot(1,4,2); plt.imshow(plt_im_sample)
+#         plt.subplot(1,4,3); plt.imshow(plt_k_sample)
+#         plt.savefig('output/figures/predict_im_'+str(k))
+#         plt.clf()
     
-    pdb.set_trace()
+#     pdb.set_trace()

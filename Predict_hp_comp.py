@@ -1,3 +1,4 @@
+# recon the undersampled data acquired from the scanner, June 26. 2018
 
 import numpy as np
 import nibabel as nib
@@ -10,78 +11,72 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import keras
-from .model_Unet_mix_local import recon_encoder
+from .model_Unet import recon_encoder
 from .utils_functions import down_sample_with_mask
 import time
 
-img_128 = np.load('dl_research/projects/under_recon/single_channel_pad_128.npy')
+ims_sample = np.load('scanner_data_0626/under_sample/img_volume.npy')
+masks = np.load('scanner_data_0626/under_sample/mask_volume.npy')
+k_sample = np.load('scanner_data_0626/under_sample/k_volume.npy')
 
-thre = np.percentile(img_128,95.0,axis=(2,3))
-thre = np.expand_dims(thre,axis=2)
-thre = np.expand_dims(thre,axis=2)
-thre = np.tile(thre, (1,1,128,128,1))
-
-img_128 = img_128/thre
-img_128[img_128>1] = 1
-
-## rotate
-img_128 = np.rot90(img_128, k=-1, axes=(2,3))
-
-
-img_out = np.zeros(img_128.shape)
-zero_filling = np.zeros(img_128.shape)
-img_full = np.zeros(img_128.shape)
+# img_out = np.zeros(img_128.shape)
+# zero_filling = np.zeros(img_128.shape)
+# img_full = np.zeros(img_128.shape)
 
 # model import
 print('start loading model')
 # recon_encoder.load_weights('output/models/under_recon_180606_unet_mixlocal_big.h5') 
-recon_encoder.load_weights('output/models/under_recon_180607_unet_distmesh_mix_local_e300_aug.h5')
+recon_encoder.load_weights('output/models/under_recon_180606_unet_aug.h5')
 print('finished loading model')
 
-key = 'comb_contrast_coil'
+# seperate complex images to real and imaginary
+ims_sample = ims_sample.astype('complex64')
+ims_sample = np.stack((np.real(ims_sample),np.imag(ims_sample)),axis=-1)
+
+k_sample = k_sample.astype('complex64')
+k_sample = np.fft.fftshift(k_sample,axes=(1,2))
+k_sample = np.stack((np.real(k_sample),np.imag(k_sample)),axis=-1)
+
+masks = masks.astype('float32')
+masks = np.fft.fftshift(masks,axes=(1,2))
+masks = np.stack((masks,masks),axis=-1)
+
+# predict with the model
 start_time = time.time()
-# key = 'comb_contrast'
-
-for k in range(img_128.shape[0]): # iterate through coils
-    for m in range(img_128.shape[1]): # iterate through contrast
-
-        input_ims = img_128[k,m,:,:,:]
-
-        input_ims = np.transpose(input_ims,(2,0,1))
-        input_ims = np.stack((input_ims,np.zeros(input_ims.shape)),axis=-1)
-
-        ims_sample, masks, k_sample, down_rate = down_sample_with_mask(input_ims, flag='distmesh')
-        pdb.set_trace()
-        model_out = recon_encoder.predict([ims_sample, masks, k_sample])
-        
-        model_out = abs(model_out[:,:,:,0]+model_out[:,:,:,1]*1j)
-        img_out[k,m,:,:,:] = np.transpose(model_out,(1,2,0))
-        
-        ims_sample = abs(ims_sample[:,:,:,0]+ims_sample[:,:,:,1]*1j)
-        zero_filling[k,m,:,:,:] = np.transpose(abs(ims_sample),(1,2,0))
-        
-        input_ims = abs(input_ims[:,:,:,0]+input_ims[:,:,:,1]*1j)
-        img_full[k,m,:,:,:] = np.transpose(abs(input_ims),(1,2,0))
-
+model_out = recon_encoder.predict([ims_sample, masks, k_sample])
 end_time = time.time()
-print('finished processing all images, average processing time')
-print((end_time-start_time)/(8.0*7.0*36.0))
-# for k in range(input_ims.shape[0]):
-    
-#     plt_mask = abs(masks[k,:,:,0])
-#     plt_im_sample = abs(ims_sample[k,:,:,0]+ims_sample[k,:,:,1]*1j)
-#     plt_im_predict = abs(model_out[k,:,:,0]+model_out[k,:,:,1]*1j)
-#     plt_full = abs(input_ims[k,:,:,0]+input_ims[k,:,:,1]*1j)
-    
-#     plt.figure()
-#     plt.subplot(1,4,1); plt.imshow(np.fft.fftshift(plt_mask)); plt.title('sample {:.2f}'.format(down_rate));plt.axis('off')
-#     plt.subplot(1,4,2); plt.imshow(plt_im_sample);plt.title('zero_filling');plt.axis('off')
-#     plt.subplot(1,4,3); plt.imshow(plt_im_predict);plt.title('CNN recon');plt.axis('off')
-#     plt.subplot(1,4,4); plt.imshow(plt_full);plt.title('Full sample');plt.axis('off')
-#     plt.savefig('output/figures/predict_hp_unet_single_'+str(k))
-#     plt.close()
-#     print('printing figure '+str(k))
+print(end_time-start_time)
+# model_out = ims_sample
 
+model_out = model_out[:,:,:,0]+model_out[:,:,:,1]*1j
+
+ims_sample = ims_sample[:,:,:,0]+ims_sample[:,:,:,1]*1j
+
+print('finished processing all images, average processing time')
+for k in range(ims_sample.shape[0]):
+    
+    plt_mask = abs(masks[k,:,:,0])
+    plt_im_sample = abs(ims_sample[k,:,:])
+    plt_im_predict = abs(model_out[k,:,:])
+    
+    plt_u_phase = np.angle(ims_sample[k,:,:])
+    plt_c_phase = np.angle(model_out[k,:,:])
+    vmin = np.min(plt_u_phase)
+    vmax = np.max(plt_c_phase)
+    
+    # plt_full = abs(input_ims[k,:,:,0]+input_ims[k,:,:,1]*1j)
+    
+    plt.figure()
+    # plt.subplot(1,4,1); plt.imshow(np.fft.fftshift(plt_mask)); plt.title('sample');plt.axis('off')
+    plt.subplot(1,4,1); plt.imshow(plt_im_sample);plt.title('Under Sample');plt.axis('off')
+    plt.subplot(1,4,3); plt.imshow(plt_im_predict);plt.title('CNN Recon');plt.axis('off')
+    plt.subplot(1,4,2); plt.imshow(plt_u_phase,vmin=vmin,vmax=vmax);plt.title('U Phase');plt.axis('off')
+    plt.subplot(1,4,4); plt.imshow(plt_c_phase,vmin=vmin,vmax=vmax);plt.title('C Phase');plt.axis('off')
+    plt.savefig('output/figures/comp_'+str(k))
+    plt.close()
+    print('printing figure '+str(k))
+
+pdb.set_trace()
 
 #### single coil-single slice
 if key == 'comb_contrast':
