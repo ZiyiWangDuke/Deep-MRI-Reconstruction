@@ -26,7 +26,7 @@ k_sample = np.load('scanner_data_0626/under_sample/k_volume.npy')
 # model import
 print('start loading model')
 # recon_encoder.load_weights('output/models/under_recon_180606_unet_mixlocal_big.h5') 
-recon_encoder.load_weights('output/models/under_recon_180606_unet_aug.h5')
+recon_encoder.load_weights('output/models/under_recon_180628_unet_phase_unet_r_i.h5')
 print('finished loading model')
 
 # seperate complex images to real and imaginary
@@ -43,6 +43,7 @@ masks = np.stack((masks,masks),axis=-1)
 
 # predict with the model
 start_time = time.time()
+pdb.set_trace()
 model_out = recon_encoder.predict([ims_sample, masks, k_sample])
 end_time = time.time()
 print(end_time-start_time)
@@ -61,6 +62,7 @@ for k in range(ims_sample.shape[0]):
     
     plt_u_phase = np.angle(ims_sample[k,:,:])
     plt_c_phase = np.angle(model_out[k,:,:])
+    
     vmin = np.min(plt_u_phase)
     vmax = np.max(plt_c_phase)
     
@@ -69,7 +71,7 @@ for k in range(ims_sample.shape[0]):
     plt.figure()
     # plt.subplot(1,4,1); plt.imshow(np.fft.fftshift(plt_mask)); plt.title('sample');plt.axis('off')
     plt.subplot(1,4,1); plt.imshow(plt_im_sample);plt.title('Under Sample');plt.axis('off')
-    plt.subplot(1,4,3); plt.imshow(plt_im_predict);plt.title('CNN Recon');plt.axis('off')
+    plt.subplot(1,4,3); plt.imshow(plt_im_predict,vmin=0,vmax=10);plt.title('CNN Recon');plt.axis('off')
     plt.subplot(1,4,2); plt.imshow(plt_u_phase,vmin=vmin,vmax=vmax);plt.title('U Phase');plt.axis('off')
     plt.subplot(1,4,4); plt.imshow(plt_c_phase,vmin=vmin,vmax=vmax);plt.title('C Phase');plt.axis('off')
     plt.savefig('output/figures/comp_'+str(k))

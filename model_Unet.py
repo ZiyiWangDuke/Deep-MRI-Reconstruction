@@ -46,7 +46,7 @@ conv1 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res1 = Add()([input_img,conv1])
 # add data consistency layer here
-fft1 = fft_layer(fft_dir = True)(res1)
+fft1 = fft_layer(fft_dir = True, split='mag_phase')(res1)
 
 fft1 = concatenate([fft1, refer], axis=-1)
 fft1 = data_consistency_with_mask_layer()(fft1)
@@ -68,7 +68,7 @@ conv2 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res2 = Add()([dc1,conv2])
 # add data consistency layer here
-fft2 = fft_layer(fft_dir = True)(res2)
+fft2 = fft_layer(fft_dir = True, split='mag_phase')(res2)
 
 fft2 = concatenate([fft2, refer], axis=-1)
 fft2 = data_consistency_with_mask_layer()(fft2)
@@ -90,7 +90,7 @@ conv3 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res3 = Add()([dc2,conv3])
 # add data consistency layer here
-fft3 = fft_layer(fft_dir = True)(res3)
+fft3 = fft_layer(fft_dir = True, split='mag_phase')(res3)
 
 fft3 = concatenate([fft3, refer], axis=-1)
 fft3 = data_consistency_with_mask_layer()(fft3)
@@ -112,7 +112,7 @@ conv4 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res4 = Add()([dc3,conv4])
 # add data consistency layer here
-fft4 = fft_layer(fft_dir = True)(res4)
+fft4 = fft_layer(fft_dir = True, split='mag_phase')(res4)
 
 fft4 = concatenate([fft4, refer], axis=-1)
 fft4 = data_consistency_with_mask_layer()(fft4)
@@ -136,7 +136,7 @@ conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 # residual
 res5 = Add()([dc4,conv5])
 # add data consistency layer here
-fft5 = fft_layer(fft_dir = True)(res5)
+fft5 = fft_layer(fft_dir = True, split='mag_phase')(res5)
 
 # refer = symmetry_with_mask_layer()(refer)
 

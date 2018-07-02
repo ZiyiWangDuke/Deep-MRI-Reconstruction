@@ -143,7 +143,7 @@ conv5 = Conv2D(filters = 2, kernel_size = 3, activation = 'relu', padding = 'sam
 res5 = Add()([dc4,conv5])
 # add data consistency layer here
 
-refer = symmetry_with_mask_layer()(refer)
+# refer = symmetry_with_mask_layer()(refer)
 
 res5 = concatenate([res5, refer], axis=-1)
 dc5 = data_consistency_with_mask_layer()(res5)

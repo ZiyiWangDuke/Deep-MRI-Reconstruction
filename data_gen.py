@@ -21,7 +21,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import scipy.stats as st
-from .phase_gen import gen_phase
+from .phase_gen_2D import gen_phase_2D
 
 def jiggle_mask(mask):
     
@@ -45,6 +45,16 @@ def read_2D_Distmesh():
     
     ''' read in 2D distmesh previously generated '''
     ind = np.random.randint(0,20)
+    
+    mask_file = 'mask_{}.npy'.format(ind)
+    mask = np.load('dl_research/projects/under_recon/dist_masks/'+mask_file)
+    
+    return mask
+
+def read_2D_Distmesh_fix():
+    
+    ''' read in 2D distmesh previously generated '''
+    ind = 5
     
     mask_file = 'mask_{}.npy'.format(ind)
     mask = np.load('dl_research/projects/under_recon/dist_masks/'+mask_file)
@@ -105,8 +115,10 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
         img=img[::2,::2,:]
         
         # generate artifact phase for the image
-        img_wphase = gen_phase(img)
+        img_wphase = gen_phase_2D(img[:,:,0])
+        img_wphase = np.expand_dims(img_wphase,axis=-1)
         # pdb.set_trace()
+        
         
         shape = img.shape[:2]
         traj_key = 'distmesh' 
@@ -165,6 +177,80 @@ def to_kspace_undersample(*, image_key='images', kspace_key = 'kspace', under_im
 
     return transform
 
+# k-space undersample, just return the k-space samples
+def to_kspace_undersample_cords(*, image_key='images', k_sample_key_real='k_samples_real', k_sample_key_imag='k_samples_imag'):
+    
+    '''undersample in k-space, pre-organize the data for training'''
+    
+    def transform_img(img):
+        # downsample from 256 to 128
+        # img=np.squeeze(img[::2,::2,:])
+        img=img[::2,::2,:]
+        
+        # generate artifact phase for the image
+        img_wphase = gen_phase_2D(img[:,:,0])
+        img_wphase = np.expand_dims(img_wphase,axis=-1)
+        # pdb.set_trace()
+        
+        shape = img.shape[:2]
+        traj_key = 'distmesh' 
+        
+        im_k_space = np.fft.fft2(np.squeeze(img_wphase, axis=-1))
+        # pdb.set_trace()
+        im_k_space = np.stack([np.real(im_k_space), np.imag(im_k_space)], axis=-1)
+        
+        if traj_key == 'random':
+            # generate random sample mask
+            acc = 3
+            mask = np.random.binomial(1, np.ones(shape)*(1.0/acc))
+        elif traj_key == 'gaussian':
+            # generate random gaussian sample mask
+            kernel = gen_2D_Gaussian(kernlen=shape[1], nsig=2.95) # acc = 3
+            mask = np.random.binomial(1, np.multiply(np.ones(shape),kernel))
+            mask = np.fft.fftshift(mask)
+        elif traj_key == 'distmesh':
+            mask = read_2D_Distmesh_fix()
+            mask = np.fft.fftshift(mask)
+        else:
+            raise ValueError('A bad traj_key is set, check data_gen')
+        
+        # mask_jig = jiggle_mask(mask)
+        mask = np.stack([mask,mask],axis=-1)
+        
+        # mask_jig = np.stack([mask_jig,mask_jig],axis=-1)
+        # mask = np.stack([mask,mask],axis=-1)
+        # mask: 128*128*2
+        
+        k_sample = np.multiply(im_k_space, mask)
+        
+        mask = mask.astype(int)[:,:,0]
+
+        k_sample_real = im_k_space[:,:,0]
+        k_sample_real = np.asarray(k_sample_real[mask==1])
+        
+        k_sample_imag = im_k_space[:,:,1]
+        k_sample_imag = np.asarray(k_sample_imag[mask==1])
+        
+        img_wphase = np.squeeze(img_wphase)
+        img_wphase = np.stack([np.real(img_wphase), np.imag(img_wphase)], axis=-1)
+
+        return k_sample_real, k_sample_imag, img_wphase
+
+    def transform(data):
+        big_lst  = [
+            transform_img(img)
+            for img in data[image_key]
+        ]
+        
+        k_sample_real = [element[0] for element in big_lst]
+        k_sample_imag = [element[1] for element in big_lst]
+        # if we do downsampling to 128
+        image_128 = [element[2] for element in big_lst]
+
+        return {**data, k_sample_key_real: k_sample_real, k_sample_key_imag: k_sample_imag, image_key:image_128}
+
+    return transform
+
 # create data pipeline using Michal's code
 def create_data_pipeline_eval(batch_size, epoch_size, flag):
     scale_limits = (0.78, 1.20)
@@ -205,7 +291,8 @@ def create_data_pipeline_eval(batch_size, epoch_size, flag):
                 
                 data_transforms.RandomSampleSlices(axis = 2), # RandomSampleSlicesValid gives the same images
                 PullSliceKey(axis = 2),
-                to_kspace_undersample(),
+                # to_kspace_undersample(),
+                to_kspace_undersample_cords(),
                 image_transforms.set_data_format('channel_last'),
             ),
             transforms.buffer_data(),
@@ -224,11 +311,17 @@ def create_data_pipeline_eval(batch_size, epoch_size, flag):
                 
                 data_transforms.RandomSampleSlicesValid(axis = 2), # RandomSampleSlicesValid gives the same images
                 PullSliceKey(axis = 2),
-                to_kspace_undersample(),
+                # to_kspace_undersample(),
+                to_kspace_undersample_cords(),
                 image_transforms.set_data_format('channel_last'),
             ),
             transforms.buffer_data(),
         )
+
+def ri_mp(ri_array):
+    cplx_array = ri_array[...,0]+1j*ri_array[...,1]
+    mp_array = np.stack((np.abs(cplx_array),np.angle(cplx_array)),axis=-1)
+    return mp_array
 
 def get_data_gen_model(data_type, batch_size, flag, epoch_size=0):
     
@@ -257,8 +350,40 @@ def get_data_gen_model(data_type, batch_size, flag, epoch_size=0):
         # with phase, ims is complex64
         ims = np.float32(np.stack(dic_data["images"], axis=0))
         
+        # convert real-imag to mag-phase representation
+        # ims_sample = ri_mp(ims_sample)
+        # k_sample = ri_mp(k_sample)
+        # ims = ri_mp(ims)
         yield [ims_sample, masks, k_sample], ims
     
+def get_data_gen_model_cord(data_type, batch_size, flag, epoch_size=0):
+    
+    # data generator directory for training the model
+    # data_type: train or valid
+    batch_iterator = create_data_pipeline_eval(batch_size=batch_size, epoch_size=epoch_size, flag=flag)(data_type)
+        
+    while True:
+        # dirty way of starting it over from the beginning
+        try:
+            dic_data = next(batch_iterator)
+        except:
+            batch_iterator = create_data_pipeline_eval(batch_size=batch_size, epoch_size=epoch_size, flag=flag)(data_type)
+            dic_data = next(batch_iterator)
+
+        # get list from dictionary and convert to array
+        # ims_sample = np.float32(np.stack(dic_data["under_sample_image"], axis=0))
+        # masks = np.float32(np.stack(dic_data["sample_mask"], axis=0))
+        k_sample_real = np.float32(np.stack(dic_data["k_samples_real"], axis=0))
+        k_sample_imag = np.float32(np.stack(dic_data["k_samples_imag"], axis=0))
+        
+        k_sample_real = np.expand_dims(k_sample_real,axis=1)
+        k_sample_imag = np.expand_dims(k_sample_imag,axis=1)
+        
+        ims = np.float32(np.stack(dic_data["images"], axis=0))
+        
+        # pdb.set_trace()
+        
+        yield [k_sample_real, k_sample_imag], ims
 
 # if __name__ == '__main__':
     
